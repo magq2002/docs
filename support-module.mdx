@@ -1,0 +1,648 @@
+---
+title: "Support Module API"
+description: "Comprehensive documentation for the Support module API endpoints in the Chingones Modelo platform"
+---
+
+# Support Module API
+
+The Support module provides administrative functionality for managing assignments, collaborators, dashboard data, goals, headcount, mechanics, and reports within the Chingones Modelo platform.
+
+<Note>
+All Support module endpoints require authentication and are restricted to users with the 'support' role.
+</Note>
+
+## Base URL
+
+All Support module endpoints are prefixed with:
+```
+/api/v2/support
+```
+
+## Authentication
+
+<Warning>
+Access to Support module endpoints is restricted to users with the `support` role. Users with other roles will receive a 403 Forbidden error.
+</Warning>
+
+The Support module extends the base `ApiController` and implements role-based access control through the `SupportController` base class.
+
+## Controllers Overview
+
+<CardGroup cols={3}>
+<Card title="Assignments" icon="upload" href="#assignments-controller">
+  Manage assignment layout file uploads and validation
+</Card>
+
+<Card title="Collaborators" icon="users" href="#collaborators-controller">
+  View and manage collaborator information and performance data
+</Card>
+
+<Card title="Dashboard" icon="chart-line" href="#dashboard-controller">
+  Access dashboard metrics and budget information by DRV
+</Card>
+
+<Card title="Goals" icon="target" href="#goals-controller">
+  Upload and process KPI goals with validation and email notifications
+</Card>
+
+<Card title="Headcount" icon="user-group" href="#headcount-controller">
+  Manage headcount data, DRVs, UENs, and organizational structure
+</Card>
+
+<Card title="Mechanic" icon="cog" href="#mechanic-controller">
+  Configure mechanic grids, areas, positions, and KPIs
+</Card>
+
+<Card title="Reports" icon="file-text" href="#reports-controller">
+  Generate and download various reports and logs
+</Card>
+</CardGroup>
+
+---
+
+## Assignments Controller
+
+The Assignments Controller handles the upload and validation of assignment layout files.
+
+### Upload Assignment Layout
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/support/assignments/upload' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@assignments.xlsx'
+```
+</RequestExample>
+
+<ParamField body="file" type="file" required>
+Excel file (.xlsx) containing assignment layout data with predefined column structure
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "errors": [],
+  "task": null
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error
+{
+  "success": false,
+  "errors": [
+    {
+      "row": 5,
+      "column": "DRV",
+      "message": "La columna DRV requiere de un valor válido"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+<Info>
+The assignment layout file must follow a specific column structure with fields like DRV, ID_SAG, UEN, and various management positions with their corresponding SAP codes.
+</Info>
+
+---
+
+## Collaborators Controller
+
+Manages collaborator information, performance data, and detailed user profiles.
+
+### Get All Collaborators
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/collaborators?limit=200&page=1' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ParamField query="limit" type="integer" default="200">
+Maximum number of results to return (1-200)
+</ParamField>
+
+<ParamField query="page" type="integer" default="1">
+Page number for pagination
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "items": [
+    {
+      "id": 123,
+      "fullName": "Juan Pérez García",
+      "email": "juan.perez@example.com",
+      "sharp": "12345",
+      "card": "1234567890"
+    }
+  ],
+  "page": 1,
+  "limit": 200,
+  "total": 1500,
+  "totalPages": 8
+}
+```
+</ResponseExample>
+
+### Get Collaborator Details
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/collaborators/123' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ParamField path="id" type="integer" required>
+Unique identifier of the collaborator
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "user": {
+    "user_id": 123,
+    "name": "Juan",
+    "sharp": "12345",
+    "email": "juan.perez@example.com",
+    "card": "1234567890"
+  },
+  "budget": {
+    "points": 2500,
+    "region": "Norte",
+    "month": "Diciembre",
+    "month_d": 1200,
+    "nivel": ""
+  },
+  "goals": [...],
+  "boosters": [...],
+  "points": [...],
+  "redemptions": [...],
+  "credits": [...]
+}
+```
+</ResponseExample>
+
+<Warning>
+This endpoint has extended execution time limits and may take several seconds to complete due to complex data aggregation.
+</Warning>
+
+---
+
+## Dashboard Controller
+
+Provides dashboard metrics and budget information filtered by DRV (Regional Distribution).
+
+### Get Available Periods
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/dashboard/periods' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+[2020, 2021, 2022, 2023, 2024]
+```
+</ResponseExample>
+
+### Get Budget Information
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/dashboard/budget/2024' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ParamField path="period" type="integer" required>
+Year for which to retrieve budget information
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "credits": 150000,
+  "debtors": 25000,
+  "points": 500000,
+  "points_redeemed": 125000
+}
+```
+</ResponseExample>
+
+<Info>
+Budget information is automatically filtered by the authenticated user's DRV (Regional Distribution).
+</Info>
+
+---
+
+## Goals Controller
+
+Handles KPI goals upload, processing, and validation with comprehensive logging and email notifications.
+
+### Upload Goals File
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/support/goals/upload' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@goals.xlsx' \
+  -F 'should_omit_sending=false' \
+  -F 'should_omit_date_validation=false'
+```
+</RequestExample>
+
+<ParamField body="file" type="file" required>
+Excel file containing KPI goals data
+</ParamField>
+
+<ParamField body="should_omit_sending" type="boolean" default="false">
+Whether to omit email notifications after processing
+</ParamField>
+
+<ParamField body="should_omit_date_validation" type="boolean" default="false">
+Whether to skip platform opening date validation
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "message": "Goals file uploaded and processed successfully",
+  "task_id": "task_12345"
+}
+```
+</ResponseExample>
+
+<Warning>
+Goals upload is subject to platform opening dates. Upload attempts outside the allowed timeframe will be rejected unless date validation is explicitly omitted.
+</Warning>
+
+<Tip>
+The system prevents concurrent uploads from the same user. Wait for the current processing to complete before uploading a new file.
+</Tip>
+
+---
+
+## Headcount Controller
+
+Manages organizational headcount data, DRVs, UENs, and employee assignments.
+
+### Get DRVs List
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/headcount/drvs' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Norte"
+    },
+    {
+      "id": 2,
+      "name": "Centro"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Get UENs List
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/headcount/uens' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "UEN Norte 1"
+    },
+    {
+      "id": 2,
+      "name": "UEN Centro 1"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Save Headcount Grid
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/support/headcount/save_grid' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "year": 2024,
+    "month": 12,
+    "payload": [
+      {
+        "email": "employee@example.com",
+        "nombre": "Juan Pérez",
+        "area_name": "Ventas",
+        "position_name": "Ejecutivo"
+      }
+    ]
+  }'
+```
+</RequestExample>
+
+<ParamField body="year" type="integer" required>
+Year for the headcount period (e.g., 2024)
+</ParamField>
+
+<ParamField body="month" type="integer" required>
+Month for the headcount period (1-12)
+</ParamField>
+
+<ParamField body="payload" type="array" required>
+Array of employee records with email, name, area, and position information
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "created": 15,
+  "updated": 3,
+  "failed": 0,
+  "errors": []
+}
+```
+</ResponseExample>
+
+---
+
+## Mechanic Controller
+
+Configures mechanic grids, areas, positions, KPIs, and award types for the incentive system.
+
+### Get Areas
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/mechanic/areas' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Ventas",
+      "created": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Get Positions
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/mechanic/positions_news' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Ejecutivo de Ventas",
+      "created": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Get KPIs
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/mechanic/kpis_news' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Ventas Mensuales",
+      "created": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Get Award Types
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/mechanic/award_types' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Puntos",
+      "created": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+### Get Mechanic Grid
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/mechanic/grid?year=2024&month=12' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ParamField query="year" type="integer" required>
+Year for the mechanic grid period
+</ParamField>
+
+<ParamField query="month" type="integer" required>
+Month for the mechanic grid period (1-12)
+</ParamField>
+
+### Save Mechanic Grid
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/support/mechanic/save_grid' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "year": 2024,
+    "month": 12,
+    "payload": [...]
+  }'
+```
+</RequestExample>
+
+<ParamField body="year" type="integer" required>
+Year for the mechanic grid period
+</ParamField>
+
+<ParamField body="month" type="integer" required>
+Month for the mechanic grid period (1-12)
+</ParamField>
+
+<ParamField body="payload" type="array" required>
+Array of mechanic configuration records
+</ParamField>
+
+---
+
+## Reports Controller
+
+Generates and provides access to various reports and processing logs.
+
+### Download Processing Log
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/reports/download_log/goals-20241215-143000.xlsx.txt' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ParamField path="file" type="string" required>
+Name of the log file to download
+</ParamField>
+
+<Info>
+This endpoint returns the log file as a downloadable attachment with appropriate headers.
+</Info>
+
+### Download Headcount Report
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/reports/download_headcount' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Disposition: attachment; filename="headcount-report-20241215.xlsx"
+```
+</ResponseExample>
+
+<Tip>
+The headcount report is generated dynamically and includes comprehensive organizational data formatted as an Excel spreadsheet.
+</Tip>
+
+---
+
+## Error Handling
+
+<AccordionGroup>
+<Accordion title="Authentication Errors">
+  **401 Unauthorized**: Invalid or missing authentication token
+  
+  **403 Forbidden**: User role does not have access to Support module
+</Accordion>
+
+<Accordion title="Validation Errors">
+  **400 Bad Request**: Invalid request parameters or missing required fields
+  
+  **422 Unprocessable Entity**: File validation errors or business rule violations
+</Accordion>
+
+<Accordion title="File Upload Errors">
+  **413 Payload Too Large**: Uploaded file exceeds size limits
+  
+  **415 Unsupported Media Type**: Invalid file format (only .xlsx files accepted)
+</Accordion>
+
+<Accordion title="Server Errors">
+  **500 Internal Server Error**: Unexpected server error during processing
+  
+  **503 Service Unavailable**: Platform maintenance or temporary unavailability
+</Accordion>
+</AccordionGroup>
+
+## Rate Limiting
+
+<Warning>
+Support module endpoints may have extended processing times, especially for file uploads and report generation. Implement appropriate timeout handling in your client applications.
+</Warning>
+
+## Best Practices
+
+<Steps>
+<Step title="Authentication">
+  Always include a valid Bearer token in the Authorization header for all requests.
+</Step>
+
+<Step title="File Validation">
+  Validate file formats and sizes on the client side before uploading to reduce server load.
+  
+  <Check>
+  Only .xlsx files are accepted for uploads.
+  </Check>
+</Step>
+
+<Step title="Error Handling">
+  Implement comprehensive error handling for all possible HTTP status codes and validation errors.
+</Step>
+
+<Step title="Pagination">
+  Use appropriate page sizes for list endpoints to optimize performance and user experience.
+</Step>
+</Steps>
