@@ -156,7 +156,8 @@ Page number for pagination
 <RequestExample>
 ```bash cURL
 curl -X GET '/api/v2/support/collaborators/123' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
@@ -169,7 +170,7 @@ Unique identifier of the collaborator
 {
   "user": {
     "user_id": 123,
-    "name": "Juan",
+    "name": "Juan Pérez",
     "sharp": "12345",
     "email": "juan.perez@example.com",
     "card": "1234567890"
@@ -181,17 +182,68 @@ Unique identifier of the collaborator
     "month_d": 1200,
     "nivel": ""
   },
-  "goals": [...],
-  "boosters": [...],
-  "points": [...],
-  "redemptions": [...],
-  "credits": [...]
+  "goals": [
+    [
+      {
+        "kpi_month": "2024-01-01T00:00:00+00:00",
+        "kpi_name": "Ventas Mensuales",
+        "kpi_goal": 100000,
+        "kpi_progress": 85000,
+        "kpi_percentage": 85.0,
+        "kpi_comment": "Buen desempeño en el primer trimestre"
+      },
+      {
+        "kpi_month": "2024-01-01T00:00:00+00:00",
+        "kpi_name": "Nuevos Clientes",
+        "kpi_goal": 50,
+        "kpi_progress": 42,
+        "kpi_percentage": 84.0,
+        "kpi_comment": "Meta casi alcanzada"
+      }
+    ]
+  ],
+  "boosters": [
+    [
+      {
+        "boosters_name": "Incentivo Q1",
+        "boosters_kpi": "Ventas Mensuales",
+        "boosters_start_date": "2024-01-01T00:00:00+00:00",
+        "boosters_end_date": "2024-03-31T23:59:59+00:00",
+        "boosters_goal": 300000,
+        "boosters_percentage": 88.5,
+        "boosters_comment": "Excelente progreso"
+      }
+    ]
+  ],
+  "points": [
+    {
+      "month_earned": "2024-01-01T00:00:00+00:00",
+      "amount_earned": 1500,
+      "comment": "Puntos por cumplimiento de meta"
+    }
+  ],
+  "redemptions": [
+    {
+      "date": "2024-01-15T10:30:00+00:00",
+      "points": 500,
+      "product": "Gift Card Amazon",
+      "status": "Entregado"
+    }
+  ],
+  "credits": [
+    {
+      "date": "2024-01-01T00:00:00+00:00",
+      "amount": 2000,
+      "type": "Dispersión mensual",
+      "status": "Procesado"
+    }
+  ]
 }
 ```
 </ResponseExample>
 
 <Warning>
-This endpoint has extended execution time limits and may take several seconds to complete due to complex data aggregation.
+This endpoint has extended execution time limits (set_time_limit(0)) and may take several seconds to complete due to complex data aggregation across multiple tables including MonthlyResults, AcceleretorsResults, and historical data.
 </Warning>
 
 ---
@@ -220,27 +272,61 @@ curl -X GET '/api/v2/support/dashboard/periods' \
 <RequestExample>
 ```bash cURL
 curl -X GET '/api/v2/support/dashboard/budget/2024' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
 <ParamField path="period" type="integer" required>
-Year for which to retrieve budget information
+Year for which to retrieve budget information (e.g., 2024)
 </ParamField>
 
 <ResponseExample>
 ```json Success
 {
+  "deposit": 500000,
+  "debt": 75000,
+  "payment": 425000,
   "credits": 150000,
   "debtors": 25000,
   "points": 500000,
-  "points_redeemed": 125000
+  "points_redeemed": 125000,
+  "total_points_earned": 625000,
+  "current_balance": 375000
 }
 ```
 </ResponseExample>
 
+<ResponseField name="deposit" type="number">
+Total deposits for the specified period
+</ResponseField>
+
+<ResponseField name="debt" type="number">
+Total outstanding debt amount
+</ResponseField>
+
+<ResponseField name="payment" type="number">
+Total payments made during the period
+</ResponseField>
+
+<ResponseField name="credits" type="number">
+Total credits available
+</ResponseField>
+
+<ResponseField name="debtors" type="number">
+Total amount owed by debtors (includes 1.5x multiplier for certain debt types)
+</ResponseField>
+
+<ResponseField name="points" type="number">
+Total points earned from monthly results and accelerator results
+</ResponseField>
+
+<ResponseField name="points_redeemed" type="number">
+Total points that have been redeemed
+</ResponseField>
+
 <Info>
-Budget information is automatically filtered by the authenticated user's DRV (Regional Distribution).
+Budget information is automatically filtered by the authenticated user's DRV (Regional Distribution). The calculation includes data from periods, monthly_results, acceleretors_results, and debtors tables.
 </Info>
 
 ---
@@ -256,22 +342,22 @@ Handles KPI goals upload, processing, and validation with comprehensive logging 
 curl -X POST '/api/v2/support/goals/upload' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'Content-Type: multipart/form-data' \
-  -F 'file=@goals.xlsx' \
+  -F 'file=@goals-2024-12.xlsx' \
   -F 'should_omit_sending=false' \
   -F 'should_omit_date_validation=false'
 ```
 </RequestExample>
 
 <ParamField body="file" type="file" required>
-Excel file containing KPI goals data
+Excel file (.xlsx) containing KPI goals data with predefined structure and columns
 </ParamField>
 
 <ParamField body="should_omit_sending" type="boolean" default="false">
-Whether to omit email notifications after processing
+Whether to omit email notifications after processing. Set to true to skip sending emails to stakeholders.
 </ParamField>
 
 <ParamField body="should_omit_date_validation" type="boolean" default="false">
-Whether to skip platform opening date validation
+Whether to skip platform opening date validation. Set to true to bypass date restrictions (admin use only).
 </ParamField>
 
 <ResponseExample>
@@ -279,18 +365,64 @@ Whether to skip platform opening date validation
 {
   "success": true,
   "message": "Goals file uploaded and processed successfully",
-  "task_id": "task_12345"
+  "task_id": "task_goals_user_123_20241215_143000",
+  "server_file": "assignments-layout-user-123-20241215-143000.xlsx",
+  "log_file": "assignments-layout-user-123-20241215-143000.xlsx.txt",
+  "processed_records": 1250,
+  "validation_errors": 0
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Date Validation
+{
+  "success": false,
+  "error": "BadRequestException",
+  "message": "La plataforma todavía no está abierta para la carga de metas",
+  "available_from": "2024-12-01T00:00:00Z",
+  "available_until": "2024-12-15T23:59:59Z",
+  "current_time": "2024-11-28T14:30:00Z"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - File Processing
+{
+  "success": false,
+  "task_id": "task_goals_user_123_20241215_143000",
+  "validation_errors": [
+    {
+      "row": 15,
+      "column": "SHARP",
+      "message": "El código SHARP es requerido y debe ser válido",
+      "value": ""
+    },
+    {
+      "row": 23,
+      "column": "DRV", 
+      "message": "La columna DRV requiere de un valor válido",
+      "value": null
+    }
+  ],
+  "total_errors": 2,
+  "log_file": "assignments-layout-user-123-20241215-143000.xlsx.txt"
 }
 ```
 </ResponseExample>
 
 <Warning>
-Goals upload is subject to platform opening dates. Upload attempts outside the allowed timeframe will be rejected unless date validation is explicitly omitted.
+Goals upload is subject to platform opening dates configured in PlatformOpening table. Upload attempts outside the allowed timeframe will be rejected unless date validation is explicitly omitted. The system also prevents concurrent uploads from the same user.
 </Warning>
 
 <Tip>
-The system prevents concurrent uploads from the same user. Wait for the current processing to complete before uploading a new file.
+The upload process includes comprehensive validation, automatic email notifications to stakeholders, and detailed logging. Large files may take several minutes to process due to memory and time limit adjustments (set_time_limit(0), memory_limit=-1).
 </Tip>
+
+<Info>
+The goals file must follow the structure defined in RulesMonth class with specific columns for different business areas like VENTAS, TRADEMARKETING, CONCESIONARIOS, MODELORAMA, etc. Each area has its own column mapping and validation rules.
+</Info>
 
 ---
 
@@ -364,10 +496,37 @@ curl -X POST '/api/v2/support/headcount/save_grid' \
     "month": 12,
     "payload": [
       {
-        "email": "employee@example.com",
-        "nombre": "Juan Pérez",
+        "email": "juan.perez@modelogroup.com",
+        "nombre": "Juan Pérez García",
         "area_name": "Ventas",
-        "position_name": "Ejecutivo"
+        "position_name": "Ejecutivo de Ventas Senior",
+        "drv": "Norte",
+        "uen": "UEN Norte 1",
+        "sharp": "12345",
+        "sap_code": "SAP001",
+        "status": "Activo"
+      },
+      {
+        "email": "maria.gonzalez@modelogroup.com", 
+        "nombre": "María González López",
+        "area_name": "Marketing",
+        "position_name": "Coordinador de Trade Marketing",
+        "drv": "Centro",
+        "uen": "UEN Centro 2",
+        "sharp": "67890",
+        "sap_code": "SAP002",
+        "status": "Activo"
+      },
+      {
+        "email": "carlos.rodriguez@modelogroup.com",
+        "nombre": "Carlos Rodríguez Martínez",
+        "area_name": "Operaciones",
+        "position_name": "Supervisor de Operaciones",
+        "drv": "Sur",
+        "uen": "UEN Sur 1", 
+        "sharp": "54321",
+        "sap_code": "SAP003",
+        "status": "Inactivo"
       }
     ]
   }'
@@ -383,20 +542,125 @@ Month for the headcount period (1-12)
 </ParamField>
 
 <ParamField body="payload" type="array" required>
-Array of employee records with email, name, area, and position information
+Array of employee records with complete organizational information
+
+<Expandable title="Employee Record Structure">
+  <ParamField body="email" type="string" required>
+  Employee's corporate email address (must be unique)
+  </ParamField>
+  
+  <ParamField body="nombre" type="string" required>
+  Employee's full name (first and last names)
+  </ParamField>
+  
+  <ParamField body="area_name" type="string" required>
+  Department or area name (e.g., "Ventas", "Marketing", "Operaciones")
+  </ParamField>
+  
+  <ParamField body="position_name" type="string" required>
+  Job position title (e.g., "Ejecutivo de Ventas Senior")
+  </ParamField>
+  
+  <ParamField body="drv" type="string">
+  Regional Distribution (DRV) assignment
+  </ParamField>
+  
+  <ParamField body="uen" type="string">
+  Strategic Business Unit (UEN) assignment
+  </ParamField>
+  
+  <ParamField body="sharp" type="string">
+  Employee's SHARP identification code
+  </ParamField>
+  
+  <ParamField body="sap_code" type="string">
+  SAP system identification code
+  </ParamField>
+  
+  <ParamField body="status" type="string">
+  Employee status ("Activo", "Inactivo", "Suspendido")
+  </ParamField>
+</Expandable>
 </ParamField>
 
 <ResponseExample>
 ```json Success
 {
   "success": true,
-  "created": 15,
-  "updated": 3,
-  "failed": 0,
+  "period": {
+    "id": 156,
+    "year": "2024",
+    "month": "12",
+    "created": "2024-12-15T14:30:00+00:00"
+  },
+  "processing_summary": {
+    "total_records": 3,
+    "created": 2,
+    "updated": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "details": {
+    "created_records": [
+      {
+        "email": "juan.perez@modelogroup.com",
+        "nombre": "Juan Pérez García",
+        "area_id": 5,
+        "position_id": 12
+      },
+      {
+        "email": "maria.gonzalez@modelogroup.com",
+        "nombre": "María González López", 
+        "area_id": 3,
+        "position_id": 8
+      }
+    ],
+    "updated_records": [
+      {
+        "email": "carlos.rodriguez@modelogroup.com",
+        "nombre": "Carlos Rodríguez Martínez",
+        "previous_status": "Activo",
+        "new_status": "Inactivo"
+      }
+    ]
+  },
   "errors": []
 }
 ```
 </ResponseExample>
+
+<ResponseExample>
+```json Partial Success with Errors
+{
+  "success": true,
+  "period": {
+    "id": 156,
+    "year": "2024", 
+    "month": "12"
+  },
+  "processing_summary": {
+    "total_records": 5,
+    "created": 3,
+    "updated": 1,
+    "failed": 1,
+    "skipped": 0
+  },
+  "errors": [
+    {
+      "record_index": 4,
+      "email": "invalid.email@domain",
+      "error": "Area 'Ventas Especiales' no encontrada en el sistema",
+      "field": "area_name",
+      "value": "Ventas Especiales"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+<Info>
+The system automatically resolves or creates the period based on year and month. Areas and positions are matched by name and created if they don't exist. The process includes comprehensive validation and error reporting for each record.
+</Info>
 
 ---
 
@@ -527,13 +791,79 @@ curl -X POST '/api/v2/support/mechanic/save_grid' \
   -d '{
     "year": 2024,
     "month": 12,
-    "payload": [...]
+    "payload": [
+      {
+        "area_id": 1,
+        "position_id": 5,
+        "kpi_id": 3,
+        "award_type_id": 1,
+        "rule_type": "percentage",
+        "min_value": 80.0,
+        "max_value": 120.0,
+        "award_amount": 1500,
+        "multiplier": 1.2,
+        "is_active": true,
+        "description": "Incentivo por cumplimiento de ventas mensuales",
+        "conditions": {
+          "min_months_active": 3,
+          "exclude_probation": true,
+          "drv_restriction": ["Norte", "Centro"]
+        }
+      },
+      {
+        "area_id": 2,
+        "position_id": 8,
+        "kpi_id": 7,
+        "award_type_id": 2,
+        "rule_type": "fixed",
+        "min_value": 100.0,
+        "max_value": null,
+        "award_amount": 2000,
+        "multiplier": 1.0,
+        "is_active": true,
+        "description": "Bono fijo por cumplimiento de KPI de satisfacción",
+        "conditions": {
+          "min_months_active": 6,
+          "exclude_probation": false,
+          "uen_restriction": ["UEN Norte 1", "UEN Centro 2"]
+        }
+      },
+      {
+        "area_id": 3,
+        "position_id": 12,
+        "kpi_id": 15,
+        "award_type_id": 3,
+        "rule_type": "tiered",
+        "tiers": [
+          {
+            "min_value": 90.0,
+            "max_value": 99.9,
+            "award_amount": 800,
+            "multiplier": 1.0
+          },
+          {
+            "min_value": 100.0,
+            "max_value": 109.9,
+            "award_amount": 1200,
+            "multiplier": 1.1
+          },
+          {
+            "min_value": 110.0,
+            "max_value": null,
+            "award_amount": 1800,
+            "multiplier": 1.3
+          }
+        ],
+        "is_active": true,
+        "description": "Sistema escalonado para KPI de eficiencia operacional"
+      }
+    ]
   }'
 ```
 </RequestExample>
 
 <ParamField body="year" type="integer" required>
-Year for the mechanic grid period
+Year for the mechanic grid period (e.g., 2024)
 </ParamField>
 
 <ParamField body="month" type="integer" required>
@@ -541,8 +871,158 @@ Month for the mechanic grid period (1-12)
 </ParamField>
 
 <ParamField body="payload" type="array" required>
-Array of mechanic configuration records
+Array of mechanic configuration records defining incentive rules
+
+<Expandable title="Mechanic Rule Structure">
+  <ParamField body="area_id" type="integer" required>
+  ID of the business area from areas_new table
+  </ParamField>
+  
+  <ParamField body="position_id" type="integer" required>
+  ID of the position from positions_new table
+  </ParamField>
+  
+  <ParamField body="kpi_id" type="integer" required>
+  ID of the KPI from kpis_new table
+  </ParamField>
+  
+  <ParamField body="award_type_id" type="integer" required>
+  ID of the award type from award_types_new table (1=Points, 2=Cash, 3=Mixed)
+  </ParamField>
+  
+  <ParamField body="rule_type" type="string" required>
+  Type of rule logic ("percentage", "fixed", "tiered", "progressive")
+  </ParamField>
+  
+  <ParamField body="min_value" type="number">
+  Minimum threshold value for rule activation
+  </ParamField>
+  
+  <ParamField body="max_value" type="number">
+  Maximum threshold value (null for unlimited)
+  </ParamField>
+  
+  <ParamField body="award_amount" type="number">
+  Base award amount (points or currency)
+  </ParamField>
+  
+  <ParamField body="multiplier" type="number">
+  Performance multiplier factor (default: 1.0)
+  </ParamField>
+  
+  <ParamField body="is_active" type="boolean">
+  Whether the rule is currently active
+  </ParamField>
+  
+  <ParamField body="description" type="string">
+  Human-readable description of the incentive rule
+  </ParamField>
+  
+  <ParamField body="conditions" type="object">
+  Additional conditions and restrictions for rule application
+  </ParamField>
+  
+  <ParamField body="tiers" type="array">
+  For tiered rules: array of tier definitions with min/max values and awards
+  </ParamField>
+</Expandable>
 </ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "period": {
+    "id": 156,
+    "year": "2024",
+    "month": "12",
+    "created": "2024-12-15T14:30:00+00:00"
+  },
+  "processing_summary": {
+    "total_rules": 3,
+    "created": 2,
+    "updated": 1,
+    "failed": 0,
+    "deactivated": 0
+  },
+  "created_rules": [
+    {
+      "id": 1001,
+      "area_name": "Ventas",
+      "position_name": "Ejecutivo Senior",
+      "kpi_name": "Ventas Mensuales",
+      "award_type": "Puntos",
+      "rule_type": "percentage"
+    },
+    {
+      "id": 1002,
+      "area_name": "Servicio al Cliente", 
+      "position_name": "Coordinador",
+      "kpi_name": "Satisfacción Cliente",
+      "award_type": "Efectivo",
+      "rule_type": "fixed"
+    }
+  ],
+  "updated_rules": [
+    {
+      "id": 998,
+      "area_name": "Operaciones",
+      "position_name": "Supervisor",
+      "kpi_name": "Eficiencia Operacional",
+      "changes": ["award_amount", "multiplier", "tiers"]
+    }
+  ],
+  "history_records": [
+    {
+      "id": 2001,
+      "mechanic_grid_id": 1001,
+      "action": "created",
+      "timestamp": "2024-12-15T14:30:15+00:00"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Validation Failed
+{
+  "success": false,
+  "error": "ValidationException",
+  "message": "Errores de validación en las reglas de mecánica",
+  "validation_errors": [
+    {
+      "rule_index": 0,
+      "field": "area_id",
+      "message": "El área con ID 99 no existe en el sistema",
+      "value": 99
+    },
+    {
+      "rule_index": 1,
+      "field": "min_value",
+      "message": "El valor mínimo debe ser menor que el valor máximo",
+      "min_value": 120.0,
+      "max_value": 100.0
+    },
+    {
+      "rule_index": 2,
+      "field": "tiers",
+      "message": "Las reglas escalonadas requieren al menos 2 niveles",
+      "provided_tiers": 1
+    }
+  ],
+  "total_errors": 3
+}
+```
+</ResponseExample>
+
+<Info>
+The mechanic grid system supports complex incentive rules with multiple award types, tiered structures, and conditional logic. Historical records are automatically maintained for audit purposes.
+</Info>
+
+<Warning>
+Mechanic rules are applied in real-time to performance calculations. Ensure thorough testing before activating rules in production periods.
+</Warning>
 
 ---
 
@@ -591,31 +1071,268 @@ The headcount report is generated dynamically and includes comprehensive organiz
 
 ## Error Handling
 
-<AccordionGroup>
-<Accordion title="Authentication Errors">
-  **401 Unauthorized**: Invalid or missing authentication token
-  
-  **403 Forbidden**: User role does not have access to Support module
-</Accordion>
+The Support Module API uses standard HTTP status codes and provides detailed error responses to help developers understand and resolve issues.
 
-<Accordion title="Validation Errors">
-  **400 Bad Request**: Invalid request parameters or missing required fields
-  
-  **422 Unprocessable Entity**: File validation errors or business rule violations
-</Accordion>
+### Common Error Responses
 
-<Accordion title="File Upload Errors">
-  **413 Payload Too Large**: Uploaded file exceeds size limits
-  
-  **415 Unsupported Media Type**: Invalid file format (only .xlsx files accepted)
-</Accordion>
+<ResponseExample>
+```json Authentication Error (401)
+{
+  "success": false,
+  "error": "UnauthorizedException",
+  "message": "Token de autenticación inválido o expirado",
+  "code": 401,
+  "timestamp": "2024-12-15T14:30:00+00:00"
+}
+```
+</ResponseExample>
 
-<Accordion title="Server Errors">
-  **500 Internal Server Error**: Unexpected server error during processing
-  
-  **503 Service Unavailable**: Platform maintenance or temporary unavailability
-</Accordion>
-</AccordionGroup>
+<ResponseExample>
+```json Validation Error (422)
+{
+  "success": false,
+  "error": "ValidationException", 
+  "message": "Los datos proporcionados no son válidos",
+  "validation_errors": [
+    {
+      "field": "employee_number",
+      "message": "El número de empleado es requerido",
+      "code": "required"
+    },
+    {
+      "field": "period",
+      "message": "El período debe estar en formato YYYY-MM",
+      "code": "invalid_format",
+      "provided_value": "2024/12"
+    }
+  ],
+  "code": 422
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json File Processing Error (400)
+{
+  "success": false,
+  "error": "FileProcessingException",
+  "message": "Error al procesar el archivo cargado",
+  "details": {
+    "file_name": "goals_december_2024.xlsx",
+    "file_size": "2.5MB",
+    "processing_errors": [
+      {
+        "row": 15,
+        "column": "employee_number",
+        "message": "Número de empleado no encontrado en el sistema",
+        "value": "EMP999999"
+      },
+      {
+        "row": 23,
+        "column": "goal_amount",
+        "message": "El monto de la meta debe ser un número positivo",
+        "value": "-1500"
+      }
+    ],
+    "total_rows": 150,
+    "processed_rows": 148,
+    "failed_rows": 2
+  },
+  "code": 400
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Database Error (500)
+{
+  "success": false,
+  "error": "DatabaseException",
+  "message": "Error interno del servidor al procesar la solicitud",
+  "error_id": "ERR_DB_2024121514300001",
+  "code": 500,
+  "timestamp": "2024-12-15T14:30:00+00:00"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Rate Limit Error (429)
+{
+  "success": false,
+  "error": "RateLimitException",
+  "message": "Límite de solicitudes excedido",
+  "details": {
+    "limit": 100,
+    "remaining": 0,
+    "reset_time": "2024-12-15T15:00:00+00:00",
+    "retry_after": 1800
+  },
+  "code": 429
+}
+```
+</ResponseExample>
+
+### Controller-Specific Errors
+
+#### Assignments Controller Errors
+
+<ResponseExample>
+```json Layout Upload Error
+{
+  "success": false,
+  "error": "LayoutValidationException",
+  "message": "El archivo de layout no cumple con la estructura requerida",
+  "validation_errors": [
+    {
+      "sheet": "Assignments",
+      "issue": "missing_required_columns",
+      "missing_columns": ["employee_number", "drv", "uen"],
+      "found_columns": ["nombre", "area", "posicion"]
+    },
+    {
+      "sheet": "Assignments", 
+      "row": 5,
+      "issue": "invalid_drv_format",
+      "message": "El formato de DRV debe ser 'DRV_XXXXX'",
+      "provided_value": "Norte"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+#### Collaborators Controller Errors
+
+<ResponseExample>
+```json Collaborator Not Found
+{
+  "success": false,
+  "error": "CollaboratorNotFoundException",
+  "message": "Colaborador no encontrado",
+  "details": {
+    "employee_number": "EMP123456",
+    "search_criteria": {
+      "active_only": true,
+      "include_inactive": false
+    }
+  },
+  "code": 404
+}
+```
+</ResponseExample>
+
+#### Goals Controller Errors
+
+<ResponseExample>
+```json Platform Date Error
+{
+  "success": false,
+  "error": "PlatformDateException",
+  "message": "La plataforma no está abierta para el período especificado",
+  "details": {
+    "requested_period": "2024-12",
+    "platform_status": "closed",
+    "opening_date": "2024-12-01T00:00:00+00:00",
+    "closing_date": "2024-11-25T23:59:59+00:00",
+    "current_date": "2024-12-15T14:30:00+00:00"
+  },
+  "code": 403
+}
+```
+</ResponseExample>
+
+#### Headcount Controller Errors
+
+<ResponseExample>
+```json Period Resolution Error
+{
+  "success": false,
+  "error": "PeriodResolutionException",
+  "message": "No se pudo resolver el período para los datos proporcionados",
+  "details": {
+    "provided_periods": ["2024-12", "2024-11", "2024-10"],
+    "resolution_attempts": [
+      {
+        "period": "2024-12",
+        "status": "not_found",
+        "message": "Período no existe en la base de datos"
+      },
+      {
+        "period": "2024-11", 
+        "status": "closed",
+        "message": "Período cerrado para modificaciones"
+      }
+    ]
+  },
+  "code": 400
+}
+```
+</ResponseExample>
+
+#### Mechanic Controller Errors
+
+<ResponseExample>
+```json Rule Conflict Error
+{
+  "success": false,
+  "error": "RuleConflictException",
+  "message": "Conflicto detectado entre reglas de mecánica",
+  "conflicts": [
+    {
+      "rule_1": {
+        "id": 1001,
+        "area": "Ventas",
+        "position": "Ejecutivo",
+        "kpi": "Ventas Mensuales"
+      },
+      "rule_2": {
+        "id": 1005,
+        "area": "Ventas", 
+        "position": "Ejecutivo",
+        "kpi": "Ventas Mensuales"
+      },
+      "conflict_type": "overlapping_criteria",
+      "message": "Múltiples reglas activas para la misma combinación área/posición/KPI"
+    }
+  ],
+  "code": 409
+}
+```
+</ResponseExample>
+
+#### Reports Controller Errors
+
+<ResponseExample>
+```json Report Generation Error
+{
+  "success": false,
+  "error": "ReportGenerationException",
+  "message": "Error al generar el reporte solicitado",
+  "details": {
+    "report_type": "headcount_summary",
+    "parameters": {
+      "period": "2024-12",
+      "drv": "DRV_NORTE"
+    },
+    "error_details": "Datos insuficientes para el período especificado",
+    "data_availability": {
+      "total_records": 0,
+      "expected_minimum": 1
+    }
+  },
+  "code": 400
+}
+```
+</ResponseExample>
+
+<Info>
+Error responses include detailed information to help developers identify and resolve issues quickly. Always check the `error` field for the specific exception type and `validation_errors` for field-level issues.
+</Info>
+
+<Warning>
+Database errors (500) are logged automatically. If you encounter persistent 500 errors, contact the system administrator with the provided `error_id`.
+</Warning>
 
 ## Rate Limiting
 
