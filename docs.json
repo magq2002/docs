@@ -19,7 +19,8 @@
               "index",
               "quickstart",
               "development",
-              "support-module"
+              "support-module",
+              "purchase-orders-module"
             ]
           },
           {

@@ -1,0 +1,543 @@
+---
+title: "Purchase Orders Module API Documentation"
+description: "Comprehensive API documentation for the Purchase Orders Module including direct redemption and shopping cart redemption for collaborators"
+---
+
+# Purchase Orders Module API
+
+El módulo de Purchase Orders (Órdenes de Compra) permite a los colaboradores realizar canjes de productos utilizando sus puntos acumulados. El sistema soporta dos tipos principales de canje:
+
+1. **Canje Directo** - Redención inmediata de un producto específico
+2. **Canje de Carrito de Compras** - Redención de múltiples productos agregados al carrito
+
+## Base URL
+
+```
+https://your-domain.com/api/v2/collaborator/purchase-orders
+```
+
+## Authentication
+
+Todos los endpoints requieren autenticación Bearer token:
+
+```bash
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+<Warning>
+Asegúrese de que su token API tenga los permisos apropiados para el módulo de Purchase Orders antes de realizar solicitudes.
+</Warning>
+
+---
+
+# Canje Directo
+
+## Crear Orden de Compra Individual
+
+Permite a un colaborador canjear un producto específico directamente utilizando sus puntos acumulados.
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/collaborator/purchase-orders/create' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "product_id": 12345
+  }'
+```
+</RequestExample>
+
+<ParamField body="product_id" type="integer" required>
+ID único del producto que se desea canjear. Debe ser un producto válido y disponible en el catálogo de incentivos.
+</ParamField>
+
+### Validaciones del Sistema
+
+<Info>
+El sistema realiza las siguientes validaciones antes de procesar el canje:
+- Verificación de autenticación del usuario
+- Validación de existencia del producto
+- Verificación de puntos suficientes
+- Confirmación de dirección de entrega registrada
+- Validación de disponibilidad del producto
+</Info>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "available": 2500,
+  "order": {
+    "id": "ORD-2024-001234",
+    "product": {
+      "id": 12345,
+      "name": "Smartphone Samsung Galaxy A54",
+      "part_number": "SAM-A54-128GB",
+      "points_value": 1500,
+      "category": "Electrónicos",
+      "vendor": "Samsung"
+    },
+    "status": "PENDING",
+    "created_at": "2024-01-15T10:30:00Z",
+    "delivery_address": "Calle Principal 123, Col. Centro, CP 12345, Ciudad de México"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Insufficient Points
+{
+  "success": false,
+  "error": "ForbiddenException",
+  "message": "No dispone de saldo suficientes para realizar la redención",
+  "details": {
+    "required_points": 1500,
+    "available_points": 800,
+    "deficit": 700
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Missing Address
+{
+  "success": false,
+  "error": "ForbiddenException",
+  "message": "Aún no registra una dirección de entrega. El canje no puede ser procesado.",
+  "action_required": "register_delivery_address"
+}
+```
+</ResponseExample>
+
+<Warning>
+El canje directo es una transacción irreversible. Una vez procesada la orden, los puntos son deducidos inmediatamente del saldo del colaborador.
+</Warning>
+
+---
+
+# Canje de Carrito de Compras
+
+## Procesar Carrito de Compras
+
+Permite canjear todos los productos agregados al carrito de compras del colaborador en una sola transacción.
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/collaborator/purchase-orders/purchase-shopping-cart' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "rfc": "base64_encoded_rfc_image",
+    "ine": "base64_encoded_ine_image", 
+    "domicilio": "base64_encoded_address_proof_image"
+  }'
+```
+</RequestExample>
+
+<ParamField body="rfc" type="string">
+Imagen del RFC codificada en base64. Requerida solo para productos CEVER (certificados de regalo).
+</ParamField>
+
+<ParamField body="ine" type="string">
+Imagen del INE codificada en base64. Requerida solo para productos CEVER.
+</ParamField>
+
+<ParamField body="domicilio" type="string">
+Imagen del comprobante de domicilio codificada en base64. Requerida solo para productos CEVER.
+</ParamField>
+
+### Productos Especiales
+
+<Info>
+El sistema maneja diferentes tipos de productos con validaciones específicas:
+
+**Productos CEVER** (SKUs: CEVER15, CEVER25, CEVER50):
+- Requieren documentación adicional (RFC, INE, comprobante de domicilio)
+- Las imágenes se almacenan en el servidor para verificación
+
+**Productos Posada** (SKUs: GP-KTS01, GP-PKTS02, GP-KTS03):
+- Se registran automáticamente en el sistema de emails de Posadas
+- Requieren información de contacto completa
+</Info>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "available": 1200,
+  "orders": [
+    {
+      "id": "ORD-2024-001235",
+      "product": {
+        "id": 12345,
+        "name": "Smartphone Samsung Galaxy A54",
+        "points_value": 1500,
+        "quantity": 1
+      },
+      "status": "PENDING"
+    },
+    {
+      "id": "ORD-2024-001236", 
+      "product": {
+        "id": 67890,
+        "name": "Audífonos Sony WH-1000XM4",
+        "points_value": 800,
+        "quantity": 2
+      },
+      "status": "PENDING"
+    }
+  ],
+  "total_points_used": 3100,
+  "processing_summary": {
+    "total_products": 3,
+    "successful_orders": 2,
+    "failed_orders": 0
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Empty Cart
+{
+  "success": false,
+  "error": "ForbiddenException",
+  "message": "Carrito vacío.",
+  "action_required": "add_products_to_cart"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Missing CEVER Documents
+{
+  "success": false,
+  "error": "ForbiddenException",
+  "message": "Falta la imagen del RFC para realizar la redención",
+  "required_documents": ["rfc", "ine", "domicilio"],
+  "reason": "cever_product_in_cart"
+}
+```
+</ResponseExample>
+
+<Warning>
+Para productos CEVER, todas las imágenes de documentos son obligatorias. El sistema validará la presencia de RFC, INE y comprobante de domicilio antes de procesar el canje.
+</Warning>
+
+---
+
+# Gestión del Carrito de Compras
+
+## Obtener Contenido del Carrito
+
+Recupera todos los productos agregados al carrito de compras del colaborador.
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/collaborator/purchase-orders/get-cart' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+{
+  "cart": [
+    {
+      "id": 12345,
+      "name": "Smartphone Samsung Galaxy A54",
+      "part_number": "SAM-A54-128GB",
+      "points_value": 1500,
+      "quantity": 1,
+      "stock": "25",
+      "category": "Electrónicos",
+      "vendor": "Samsung",
+      "description": {
+        "large": "Smartphone Samsung Galaxy A54 con 128GB de almacenamiento...",
+        "medium": "Samsung Galaxy A54 128GB",
+        "short": "Galaxy A54"
+      }
+    }
+  ],
+  "cever": false,
+  "total_items": 1,
+  "total_points": 1500
+}
+```
+</ResponseExample>
+
+## Agregar Producto al Carrito
+
+Agrega un producto al carrito de compras o actualiza la cantidad si ya existe.
+
+<RequestExample>
+```bash cURL
+curl -X PUT '/api/v2/collaborator/purchase-orders/add-to-cart' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "product_id": 12345,
+    "quantity": 2
+  }'
+```
+</RequestExample>
+
+<ParamField body="product_id" type="integer" required>
+ID único del producto a agregar al carrito.
+</ParamField>
+
+<ParamField body="quantity" type="integer" default="1">
+Cantidad del producto a agregar. Si el producto ya existe en el carrito, se actualizará con esta cantidad.
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "cart": [
+    {
+      "id": 12345,
+      "name": "Smartphone Samsung Galaxy A54",
+      "quantity": 2,
+      "points_value": 1500,
+      "total_points": 3000
+    }
+  ],
+  "cever": false
+}
+```
+</ResponseExample>
+
+## Remover Producto del Carrito
+
+Elimina completamente un producto del carrito de compras.
+
+<RequestExample>
+```bash cURL
+curl -X DELETE '/api/v2/collaborator/purchase-orders/remove-from-cart/12345' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ParamField path="product_id" type="integer" required>
+ID único del producto a remover del carrito.
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "message": "Producto removido del carrito exitosamente",
+  "remaining_items": 2
+}
+```
+</ResponseExample>
+
+---
+
+# Consulta de Órdenes
+
+## Listar Órdenes de Compra
+
+Obtiene el historial completo de órdenes de compra del colaborador.
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/collaborator/purchase-orders/main' \
+  -H 'Authorization: Bearer YOUR_TOKEN'
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success
+[
+  {
+    "id": "ORD-2024-001234",
+    "total": 1500,
+    "status": "TRANSIT",
+    "tracking_number": "1234567890",
+    "created": "2024-01-15T10:30:00Z",
+    "modified": "2024-01-16T14:20:00Z",
+    "dhl": true,
+    "link": "https://www.dhl.com/mx-es/home/rastreo.html?tracking-id=1234567890",
+    "product": {
+      "name": "Smartphone Samsung Galaxy A54",
+      "part_number": "SAM-A54-128GB",
+      "category": "Electrónicos",
+      "subcategory": "Smartphones",
+      "vendor": "Samsung",
+      "description": "Smartphone Samsung Galaxy A54 con 128GB...",
+      "price": 1500,
+      "quantity": 1
+    }
+  },
+  {
+    "id": "ORD-2024-001235",
+    "total": 800,
+    "status": "PENDING",
+    "tracking_number": "Pendiente",
+    "created": "2024-01-14T09:15:00Z",
+    "modified": "2024-01-14T09:15:00Z",
+    "dhl": false,
+    "link": "",
+    "product": {
+      "name": "Audífonos Sony WH-1000XM4",
+      "part_number": "SONY-WH1000XM4",
+      "category": "Electrónicos",
+      "subcategory": "Audio",
+      "vendor": "Sony",
+      "description": "Audífonos inalámbricos con cancelación de ruido...",
+      "price": 800,
+      "quantity": 1
+    }
+  }
+]
+```
+</ResponseExample>
+
+### Estados de Órdenes
+
+<Info>
+Los posibles estados de una orden son:
+
+- **PENDING**: Orden creada, pendiente de procesamiento
+- **TRANSIT**: Orden en tránsito (equivale a SENT en el sistema)
+- **DELIVERED**: Orden entregada exitosamente
+- **CANCELED**: Orden cancelada
+</Info>
+
+---
+
+# Manejo de Errores
+
+## Errores Comunes
+
+<ResponseExample>
+```json Authentication Error
+{
+  "success": false,
+  "error": "UnauthorizedException",
+  "message": "Token de autenticación inválido o expirado",
+  "code": 401
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Product Not Found
+{
+  "success": false,
+  "error": "NotFoundException", 
+  "message": "El producto no se encuentra disponible",
+  "code": 404
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Insufficient Points
+{
+  "success": false,
+  "error": "ForbiddenException",
+  "message": "No dispone de saldo suficientes para realizar la redención",
+  "details": {
+    "required_points": 1500,
+    "available_points": 800
+  },
+  "code": 403
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Internal Server Error
+{
+  "success": false,
+  "error": "InternalErrorException",
+  "message": "No se pudo agregar el producto al carrito de compras",
+  "code": 500
+}
+```
+</ResponseExample>
+
+## Códigos de Estado HTTP
+
+| Código | Descripción |
+|--------|-------------|
+| 200 | Solicitud exitosa |
+| 201 | Recurso creado exitosamente |
+| 400 | Solicitud malformada |
+| 401 | No autorizado |
+| 403 | Prohibido - Insuficientes permisos o puntos |
+| 404 | Recurso no encontrado |
+| 500 | Error interno del servidor |
+
+---
+
+# Flujo de Trabajo Recomendado
+
+<Steps>
+<Step title="Verificar saldo de puntos">
+  Antes de realizar cualquier canje, verifique que el colaborador tenga suficientes puntos disponibles.
+</Step>
+
+<Step title="Validar dirección de entrega">
+  Asegúrese de que el colaborador tenga una dirección de entrega registrada en el sistema.
+  
+  <Warning>
+  Sin dirección de entrega, no se pueden procesar canjes de productos físicos.
+  </Warning>
+</Step>
+
+<Step title="Seleccionar tipo de canje">
+  - **Canje Directo**: Para productos individuales
+  - **Carrito de Compras**: Para múltiples productos
+</Step>
+
+<Step title="Procesar documentación especial">
+  Para productos CEVER, prepare las imágenes de documentos requeridos en formato base64.
+  
+  <Tip>
+  Las imágenes deben ser claras y legibles para evitar rechazos en el procesamiento.
+  </Tip>
+</Step>
+
+<Step title="Confirmar transacción">
+  Una vez procesado el canje, los puntos se deducen inmediatamente y se genera la orden de compra.
+  
+  <Check>
+  Guarde el ID de la orden para futuras consultas de estado.
+  </Check>
+</Step>
+</Steps>
+
+---
+
+# Limitaciones y Consideraciones
+
+<Warning>
+**Limitaciones importantes del sistema:**
+
+- Los canjes son transacciones irreversibles
+- Los productos con stock limitado pueden agotarse durante el proceso
+- Las imágenes para productos CEVER deben ser válidas y legibles
+- El sistema puede tener períodos de mantenimiento donde los canjes están deshabilitados
+</Warning>
+
+<Info>
+**Consideraciones de rendimiento:**
+
+- El procesamiento de carrito con múltiples productos puede tomar varios segundos
+- Las transacciones utilizan bloqueos de base de datos para evitar condiciones de carrera
+- Se recomienda implementar timeouts apropiados en las solicitudes del cliente
+</Info>
+
+<Tip>
+**Mejores prácticas:**
+
+- Implemente validación del lado del cliente antes de enviar solicitudes
+- Maneje apropiadamente los errores de red y timeouts
+- Proporcione feedback visual al usuario durante el procesamiento
+- Mantenga una copia local del estado del carrito para mejor UX
+</Tip>

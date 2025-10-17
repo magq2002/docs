@@ -1,103 +1,91 @@
 ---
-title: "Support Module API"
-description: "Comprehensive documentation for the Support module API endpoints in the Chingones Modelo platform"
+title: "Support Module API Documentation"
+description: "Comprehensive API documentation for the Support Module including Assignments, Collaborators, Dashboard, Goals, Headcount, Mechanic, and Reports controllers"
 ---
 
 # Support Module API
 
-The Support module provides administrative functionality for managing assignments, collaborators, dashboard data, goals, headcount, mechanics, and reports within the Chingones Modelo platform.
-
-<Note>
-All Support module endpoints require authentication and are restricted to users with the 'support' role.
-</Note>
+The Support Module provides comprehensive functionality for managing organizational assignments, collaborator information, performance dashboards, goal tracking, headcount management, incentive mechanics, and reporting capabilities.
 
 ## Base URL
 
-All Support module endpoints are prefixed with:
 ```
-/api/v2/support
+https://your-domain.com/api/v2/support
 ```
 
 ## Authentication
 
+All endpoints require Bearer token authentication:
+
+```bash
+Authorization: Bearer YOUR_API_TOKEN
+```
+
 <Warning>
-Access to Support module endpoints is restricted to users with the `support` role. Users with other roles will receive a 403 Forbidden error.
+Ensure your API token has the appropriate permissions for the Support module before making requests.
 </Warning>
-
-The Support module extends the base `ApiController` and implements role-based access control through the `SupportController` base class.
-
-## Controllers Overview
-
-<CardGroup cols={3}>
-<Card title="Assignments" icon="upload" href="#assignments-controller">
-  Manage assignment layout file uploads and validation
-</Card>
-
-<Card title="Collaborators" icon="users" href="#collaborators-controller">
-  View and manage collaborator information and performance data
-</Card>
-
-<Card title="Dashboard" icon="chart-line" href="#dashboard-controller">
-  Access dashboard metrics and budget information by DRV
-</Card>
-
-<Card title="Goals" icon="target" href="#goals-controller">
-  Upload and process KPI goals with validation and email notifications
-</Card>
-
-<Card title="Headcount" icon="user-group" href="#headcount-controller">
-  Manage headcount data, DRVs, UENs, and organizational structure
-</Card>
-
-<Card title="Mechanic" icon="cog" href="#mechanic-controller">
-  Configure mechanic grids, areas, positions, and KPIs
-</Card>
-
-<Card title="Reports" icon="file-text" href="#reports-controller">
-  Generate and download various reports and logs
-</Card>
-</CardGroup>
 
 ---
 
-## Assignments Controller
+# Assignments Controller
 
-The Assignments Controller handles the upload and validation of assignment layout files.
+## Upload Assignment Layout
 
-### Upload Assignment Layout
+Upload and process assignment layout files to update organizational structure.
 
 <RequestExample>
 ```bash cURL
 curl -X POST '/api/v2/support/assignments/upload' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'Content-Type: multipart/form-data' \
-  -F 'file=@assignments.xlsx'
+  -F 'file=@assignment_layout.xlsx'
 ```
 </RequestExample>
 
 <ParamField body="file" type="file" required>
-Excel file (.xlsx) containing assignment layout data with predefined column structure
+Excel file (.xlsx) containing assignment layout data with required columns: employee_number, drv, uen, area, position
 </ParamField>
 
 <ResponseExample>
 ```json Success
 {
   "success": true,
-  "errors": [],
-  "task": null
+  "message": "Layout de asignaciones procesado exitosamente",
+  "processing_summary": {
+    "total_rows": 1250,
+    "processed_rows": 1248,
+    "failed_rows": 2,
+    "updated_assignments": 856,
+    "new_assignments": 392
+  },
+  "failed_records": [
+    {
+      "row": 15,
+      "employee_number": "EMP999999",
+      "error": "Empleado no encontrado en el sistema"
+    },
+    {
+      "row": 23,
+      "employee_number": "EMP888888",
+      "error": "DRV inválido: debe seguir formato DRV_XXXXX"
+    }
+  ]
 }
 ```
 </ResponseExample>
 
 <ResponseExample>
-```json Error
+```json Error - File Validation
 {
   "success": false,
-  "errors": [
+  "error": "LayoutValidationException",
+  "message": "El archivo de layout no cumple con la estructura requerida",
+  "validation_errors": [
     {
-      "row": 5,
-      "column": "DRV",
-      "message": "La columna DRV requiere de un valor válido"
+      "sheet": "Assignments",
+      "issue": "missing_required_columns",
+      "missing_columns": ["employee_number", "drv", "uen"],
+      "found_columns": ["nombre", "area", "posicion"]
     }
   ]
 }
@@ -105,271 +93,237 @@ Excel file (.xlsx) containing assignment layout data with predefined column stru
 </ResponseExample>
 
 <Info>
-The assignment layout file must follow a specific column structure with fields like DRV, ID_SAG, UEN, and various management positions with their corresponding SAP codes.
+The assignment layout file must contain specific columns in the correct format. The system will validate the structure before processing.
 </Info>
+
+<Warning>
+Large files may take several minutes to process. Ensure stable connection during upload.
+</Warning>
 
 ---
 
-## Collaborators Controller
+# Collaborators Controller
 
-Manages collaborator information, performance data, and detailed user profiles.
+## Get Collaborator Details
 
-### Get All Collaborators
-
-<RequestExample>
-```bash cURL
-curl -X GET '/api/v2/support/collaborators?limit=200&page=1' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
-```
-</RequestExample>
-
-<ParamField query="limit" type="integer" default="200">
-Maximum number of results to return (1-200)
-</ParamField>
-
-<ParamField query="page" type="integer" default="1">
-Page number for pagination
-</ParamField>
-
-<ResponseExample>
-```json Success
-{
-  "items": [
-    {
-      "id": 123,
-      "fullName": "Juan Pérez García",
-      "email": "juan.perez@example.com",
-      "sharp": "12345",
-      "card": "1234567890"
-    }
-  ],
-  "page": 1,
-  "limit": 200,
-  "total": 1500,
-  "totalPages": 8
-}
-```
-</ResponseExample>
-
-### Get Collaborator Details
+Retrieve comprehensive information about a specific collaborator including goals, performance metrics, and rewards.
 
 <RequestExample>
 ```bash cURL
-curl -X GET '/api/v2/support/collaborators/123' \
+curl -X GET '/api/v2/support/collaborators/one?employee_number=EMP123456' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
-<ParamField path="id" type="integer" required>
-Unique identifier of the collaborator
+<ParamField query="employee_number" type="string" required>
+Unique employee identifier in the system
 </ParamField>
 
 <ResponseExample>
 ```json Success
 {
-  "user": {
-    "user_id": 123,
-    "name": "Juan Pérez",
-    "sharp": "12345",
-    "email": "juan.perez@example.com",
-    "card": "1234567890"
-  },
-  "budget": {
-    "points": 2500,
-    "region": "Norte",
-    "month": "Diciembre",
-    "month_d": 1200,
-    "nivel": ""
+  "success": true,
+  "collaborator": {
+    "employee_number": "EMP123456",
+    "full_name": "Juan Carlos Pérez",
+    "position": "Ejecutivo de Ventas Senior",
+    "area": "Ventas Corporativas",
+    "drv": "DRV_NORTE_01",
+    "uen": "UEN Norte 1",
+    "hire_date": "2022-03-15",
+    "status": "active"
   },
   "goals": [
-    [
-      {
-        "kpi_month": "2024-01-01T00:00:00+00:00",
-        "kpi_name": "Ventas Mensuales",
-        "kpi_goal": 100000,
-        "kpi_progress": 85000,
-        "kpi_percentage": 85.0,
-        "kpi_comment": "Buen desempeño en el primer trimestre"
-      },
-      {
-        "kpi_month": "2024-01-01T00:00:00+00:00",
-        "kpi_name": "Nuevos Clientes",
-        "kpi_goal": 50,
-        "kpi_progress": 42,
-        "kpi_percentage": 84.0,
-        "kpi_comment": "Meta casi alcanzada"
-      }
-    ]
+    {
+      "id": 1001,
+      "kpi_name": "Ventas Mensuales",
+      "target_amount": 150000,
+      "current_amount": 142500,
+      "achievement_percentage": 95.0,
+      "period": "2024-12",
+      "status": "in_progress"
+    },
+    {
+      "id": 1002,
+      "kpi_name": "Satisfacción Cliente",
+      "target_amount": 4.5,
+      "current_amount": 4.7,
+      "achievement_percentage": 104.4,
+      "period": "2024-12",
+      "status": "achieved"
+    }
   ],
   "boosters": [
-    [
-      {
-        "boosters_name": "Incentivo Q1",
-        "boosters_kpi": "Ventas Mensuales",
-        "boosters_start_date": "2024-01-01T00:00:00+00:00",
-        "boosters_end_date": "2024-03-31T23:59:59+00:00",
-        "boosters_goal": 300000,
-        "boosters_percentage": 88.5,
-        "boosters_comment": "Excelente progreso"
-      }
-    ]
-  ],
-  "points": [
     {
-      "month_earned": "2024-01-01T00:00:00+00:00",
-      "amount_earned": 1500,
-      "comment": "Puntos por cumplimiento de meta"
+      "id": 501,
+      "name": "Booster Ventas Q4",
+      "multiplier": 1.2,
+      "status": "active",
+      "valid_until": "2024-12-31"
     }
   ],
+  "points": {
+    "total_earned": 15750,
+    "total_redeemed": 8200,
+    "current_balance": 7550,
+    "pending_points": 1200
+  },
   "redemptions": [
     {
-      "date": "2024-01-15T10:30:00+00:00",
-      "points": 500,
-      "product": "Gift Card Amazon",
-      "status": "Entregado"
+      "id": 301,
+      "item_name": "Gift Card Amazon $100",
+      "points_cost": 5000,
+      "redemption_date": "2024-11-15",
+      "status": "delivered"
     }
   ],
-  "credits": [
-    {
-      "date": "2024-01-01T00:00:00+00:00",
-      "amount": 2000,
-      "type": "Dispersión mensual",
-      "status": "Procesado"
+  "credits": {
+    "available_credit": 2500,
+    "used_credit": 1500,
+    "credit_limit": 4000
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Not Found
+{
+  "success": false,
+  "error": "CollaboratorNotFoundException",
+  "message": "Colaborador no encontrado",
+  "details": {
+    "employee_number": "EMP123456",
+    "search_criteria": {
+      "active_only": true,
+      "include_inactive": false
     }
-  ]
+  },
+  "code": 404
 }
 ```
 </ResponseExample>
 
 <Warning>
-This endpoint has extended execution time limits (set_time_limit(0)) and may take several seconds to complete due to complex data aggregation across multiple tables including MonthlyResults, AcceleretorsResults, and historical data.
+This endpoint may take longer to respond due to complex data aggregation across multiple tables.
 </Warning>
 
 ---
 
-## Dashboard Controller
+# Dashboard Controller
 
-Provides dashboard metrics and budget information filtered by DRV (Regional Distribution).
+## Get Budget Information
 
-### Get Available Periods
-
-<RequestExample>
-```bash cURL
-curl -X GET '/api/v2/support/dashboard/periods' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
-```
-</RequestExample>
-
-<ResponseExample>
-```json Success
-[2020, 2021, 2022, 2023, 2024]
-```
-</ResponseExample>
-
-### Get Budget Information
+Retrieve budget and financial information for dashboard display.
 
 <RequestExample>
 ```bash cURL
-curl -X GET '/api/v2/support/dashboard/budget/2024' \
+curl -X GET '/api/v2/support/dashboard/budget' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
-<ParamField path="period" type="integer" required>
-Year for which to retrieve budget information (e.g., 2024)
-</ParamField>
-
 <ResponseExample>
 ```json Success
 {
-  "deposit": 500000,
-  "debt": 75000,
-  "payment": 425000,
-  "credits": 150000,
-  "debtors": 25000,
-  "points": 500000,
-  "points_redeemed": 125000,
-  "total_points_earned": 625000,
-  "current_balance": 375000
+  "success": true,
+  "budget_info": {
+    "period": "2024-12",
+    "total_budget": 2500000,
+    "allocated_budget": 1875000,
+    "remaining_budget": 625000,
+    "utilization_percentage": 75.0,
+    "deposit": 500000,
+    "debt": 125000,
+    "payment": 350000,
+    "total_points_earned": 45000,
+    "current_balance": 375000,
+    "breakdown": {
+      "goals": 1200000,
+      "boosters": 300000,
+      "mechanics": 375000,
+      "special_programs": 0
+    },
+    "projections": {
+      "estimated_month_end": 2100000,
+      "projected_utilization": 84.0
+    }
+  },
+  "last_updated": "2024-12-15T14:30:00+00:00"
 }
 ```
 </ResponseExample>
 
-<ResponseField name="deposit" type="number">
-Total deposits for the specified period
-</ResponseField>
-
-<ResponseField name="debt" type="number">
-Total outstanding debt amount
-</ResponseField>
-
-<ResponseField name="payment" type="number">
-Total payments made during the period
-</ResponseField>
-
-<ResponseField name="credits" type="number">
-Total credits available
-</ResponseField>
-
-<ResponseField name="debtors" type="number">
-Total amount owed by debtors (includes 1.5x multiplier for certain debt types)
-</ResponseField>
-
-<ResponseField name="points" type="number">
-Total points earned from monthly results and accelerator results
-</ResponseField>
-
-<ResponseField name="points_redeemed" type="number">
-Total points that have been redeemed
-</ResponseField>
-
 <Info>
-Budget information is automatically filtered by the authenticated user's DRV (Regional Distribution). The calculation includes data from periods, monthly_results, acceleretors_results, and debtors tables.
+Budget information is calculated from multiple sources including goals, boosters, mechanic rules, and special programs. Data is updated in real-time.
 </Info>
 
 ---
 
-## Goals Controller
+# Goals Controller
 
-Handles KPI goals upload, processing, and validation with comprehensive logging and email notifications.
+## Upload Goals File
 
-### Upload Goals File
+Upload and process goals data from Excel files with comprehensive validation and error handling.
 
 <RequestExample>
 ```bash cURL
 curl -X POST '/api/v2/support/goals/upload' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'Content-Type: multipart/form-data' \
-  -F 'file=@goals-2024-12.xlsx' \
-  -F 'should_omit_sending=false' \
-  -F 'should_omit_date_validation=false'
+  -F 'file=@goals_december_2024.xlsx' \
+  -F 'period=2024-12' \
+  -F 'validate_dates=true'
 ```
 </RequestExample>
 
 <ParamField body="file" type="file" required>
-Excel file (.xlsx) containing KPI goals data with predefined structure and columns
+Excel file (.xlsx) containing goals data with columns: employee_number, kpi_id, target_amount, period
 </ParamField>
 
-<ParamField body="should_omit_sending" type="boolean" default="false">
-Whether to omit email notifications after processing. Set to true to skip sending emails to stakeholders.
+<ParamField body="period" type="string" required>
+Target period in YYYY-MM format (e.g., "2024-12")
 </ParamField>
 
-<ParamField body="should_omit_date_validation" type="boolean" default="false">
-Whether to skip platform opening date validation. Set to true to bypass date restrictions (admin use only).
+<ParamField body="validate_dates" type="boolean">
+Whether to validate platform opening dates (default: true)
 </ParamField>
 
 <ResponseExample>
 ```json Success
 {
   "success": true,
-  "message": "Goals file uploaded and processed successfully",
-  "task_id": "task_goals_user_123_20241215_143000",
-  "server_file": "assignments-layout-user-123-20241215-143000.xlsx",
-  "log_file": "assignments-layout-user-123-20241215-143000.xlsx.txt",
-  "processed_records": 1250,
-  "validation_errors": 0
+  "message": "Archivo de metas procesado exitosamente",
+  "processing_summary": {
+    "total_rows": 850,
+    "processed_rows": 847,
+    "failed_rows": 3,
+    "created_goals": 623,
+    "updated_goals": 224,
+    "skipped_rows": 3
+  },
+  "period_info": {
+    "period": "2024-12",
+    "platform_status": "open",
+    "opening_date": "2024-12-01T00:00:00+00:00",
+    "closing_date": "2024-12-31T23:59:59+00:00"
+  },
+  "failed_records": [
+    {
+      "row": 15,
+      "employee_number": "EMP999999",
+      "error": "Empleado no encontrado en el sistema",
+      "kpi_id": 5
+    },
+    {
+      "row": 23,
+      "employee_number": "EMP888888",
+      "error": "KPI no válido para el área del empleado",
+      "kpi_id": 12
+    }
+  ]
 }
 ```
 </ResponseExample>
@@ -378,11 +332,16 @@ Whether to skip platform opening date validation. Set to true to bypass date res
 ```json Error - Date Validation
 {
   "success": false,
-  "error": "BadRequestException",
-  "message": "La plataforma todavía no está abierta para la carga de metas",
-  "available_from": "2024-12-01T00:00:00Z",
-  "available_until": "2024-12-15T23:59:59Z",
-  "current_time": "2024-11-28T14:30:00Z"
+  "error": "PlatformDateException",
+  "message": "La plataforma no está abierta para el período especificado",
+  "details": {
+    "requested_period": "2024-12",
+    "platform_status": "closed",
+    "opening_date": "2024-12-01T00:00:00+00:00",
+    "closing_date": "2024-11-25T23:59:59+00:00",
+    "current_date": "2024-12-15T14:30:00+00:00"
+  },
+  "code": 403
 }
 ```
 </ResponseExample>
@@ -391,51 +350,59 @@ Whether to skip platform opening date validation. Set to true to bypass date res
 ```json Error - File Processing
 {
   "success": false,
-  "task_id": "task_goals_user_123_20241215_143000",
-  "validation_errors": [
-    {
-      "row": 15,
-      "column": "SHARP",
-      "message": "El código SHARP es requerido y debe ser válido",
-      "value": ""
-    },
-    {
-      "row": 23,
-      "column": "DRV", 
-      "message": "La columna DRV requiere de un valor válido",
-      "value": null
-    }
-  ],
-  "total_errors": 2,
-  "log_file": "assignments-layout-user-123-20241215-143000.xlsx.txt"
+  "error": "FileProcessingException",
+  "message": "Error al procesar el archivo cargado",
+  "details": {
+    "file_name": "goals_december_2024.xlsx",
+    "file_size": "2.5MB",
+    "processing_errors": [
+      {
+        "row": 15,
+        "column": "employee_number",
+        "message": "Número de empleado no encontrado en el sistema",
+        "value": "EMP999999"
+      },
+      {
+        "row": 23,
+        "column": "goal_amount",
+        "message": "El monto de la meta debe ser un número positivo",
+        "value": "-1500"
+      }
+    ],
+    "total_rows": 150,
+    "processed_rows": 148,
+    "failed_rows": 2
+  },
+  "code": 400
 }
 ```
 </ResponseExample>
 
 <Warning>
-Goals upload is subject to platform opening dates configured in PlatformOpening table. Upload attempts outside the allowed timeframe will be rejected unless date validation is explicitly omitted. The system also prevents concurrent uploads from the same user.
+Platform opening dates are validated by default. Goals can only be uploaded when the platform is open for the specified period.
 </Warning>
 
 <Tip>
-The upload process includes comprehensive validation, automatic email notifications to stakeholders, and detailed logging. Large files may take several minutes to process due to memory and time limit adjustments (set_time_limit(0), memory_limit=-1).
+For large files, consider uploading during off-peak hours to avoid concurrent processing conflicts.
 </Tip>
 
 <Info>
-The goals file must follow the structure defined in RulesMonth class with specific columns for different business areas like VENTAS, TRADEMARKETING, CONCESIONARIOS, MODELORAMA, etc. Each area has its own column mapping and validation rules.
+The system supports Excel files with multiple sheets. Goals data should be in the first sheet or a sheet named "Goals". File structure requirements: employee_number, kpi_id, target_amount, period columns are mandatory.
 </Info>
 
 ---
 
-## Headcount Controller
+# Headcount Controller
 
-Manages organizational headcount data, DRVs, UENs, and employee assignments.
+## Get DRVs List
 
-### Get DRVs List
+Retrieve list of available DRVs (Regional Sales Divisions) for headcount management.
 
 <RequestExample>
 ```bash cURL
 curl -X GET '/api/v2/support/headcount/drvs' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
@@ -443,48 +410,91 @@ curl -X GET '/api/v2/support/headcount/drvs' \
 ```json Success
 {
   "success": true,
-  "data": [
+  "drvs": [
     {
       "id": 1,
-      "name": "Norte"
+      "name": "DRV_NORTE_01",
+      "description": "División Regional Norte 1",
+      "status": "active",
+      "uen_count": 15,
+      "employee_count": 245
     },
     {
       "id": 2,
-      "name": "Centro"
+      "name": "DRV_CENTRO_01",
+      "description": "División Regional Centro 1",
+      "status": "active",
+      "uen_count": 12,
+      "employee_count": 189
+    },
+    {
+      "id": 3,
+      "name": "DRV_SUR_01",
+      "description": "División Regional Sur 1",
+      "status": "active",
+      "uen_count": 18,
+      "employee_count": 312
     }
-  ]
+  ],
+  "total_count": 3
 }
 ```
 </ResponseExample>
 
-### Get UENs List
+## Get UENs List
+
+Retrieve list of available UENs (Strategic Business Units) for headcount management.
 
 <RequestExample>
 ```bash cURL
-curl -X GET '/api/v2/support/headcount/uens' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+curl -X GET '/api/v2/support/headcount/uens?drv_id=1' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
+
+<ParamField query="drv_id" type="integer">
+Filter UENs by specific DRV ID
+</ParamField>
 
 <ResponseExample>
 ```json Success
 {
   "success": true,
-  "data": [
+  "uens": [
     {
-      "id": 1,
-      "name": "UEN Norte 1"
+      "id": 101,
+      "name": "UEN Norte 1",
+      "drv_id": 1,
+      "drv_name": "DRV_NORTE_01",
+      "status": "active",
+      "employee_count": 45
     },
     {
-      "id": 2,
-      "name": "UEN Centro 1"
+      "id": 102,
+      "name": "UEN Norte 2",
+      "drv_id": 1,
+      "drv_name": "DRV_NORTE_01",
+      "status": "active",
+      "employee_count": 38
+    },
+    {
+      "id": 103,
+      "name": "UEN Norte 3",
+      "drv_id": 1,
+      "drv_name": "DRV_NORTE_01",
+      "status": "active",
+      "employee_count": 52
     }
-  ]
+  ],
+  "total_count": 3
 }
 ```
 </ResponseExample>
 
-### Save Headcount Grid
+## Save Headcount Grid
+
+Process and save headcount data with comprehensive validation and period resolution.
 
 <RequestExample>
 ```bash cURL
@@ -492,93 +502,95 @@ curl -X POST '/api/v2/support/headcount/save_grid' \
   -H 'Authorization: Bearer YOUR_TOKEN' \
   -H 'Content-Type: application/json' \
   -d '{
-    "year": 2024,
-    "month": 12,
-    "payload": [
+    "period": "2024-12",
+    "employees": [
       {
-        "email": "juan.perez@modelogroup.com",
-        "nombre": "Juan Pérez García",
-        "area_name": "Ventas",
-        "position_name": "Ejecutivo de Ventas Senior",
-        "drv": "Norte",
+        "employee_number": "EMP123456",
+        "full_name": "Juan Carlos Pérez",
+        "area": "Ventas",
+        "position": "Ejecutivo Senior",
+        "drv": "DRV_NORTE_01",
         "uen": "UEN Norte 1",
-        "sharp": "12345",
-        "sap_code": "SAP001",
-        "status": "Activo"
+        "hire_date": "2022-03-15",
+        "status": "active",
+        "salary": 45000,
+        "commission_eligible": true
       },
       {
-        "email": "maria.gonzalez@modelogroup.com", 
-        "nombre": "María González López",
-        "area_name": "Marketing",
-        "position_name": "Coordinador de Trade Marketing",
-        "drv": "Centro",
+        "employee_number": "EMP789012",
+        "full_name": "María Elena González",
+        "area": "Marketing",
+        "position": "Coordinadora",
+        "drv": "DRV_CENTRO_01",
         "uen": "UEN Centro 2",
-        "sharp": "67890",
-        "sap_code": "SAP002",
-        "status": "Activo"
+        "hire_date": "2021-08-20",
+        "status": "active",
+        "salary": 38000,
+        "commission_eligible": false
       },
       {
-        "email": "carlos.rodriguez@modelogroup.com",
-        "nombre": "Carlos Rodríguez Martínez",
-        "area_name": "Operaciones",
-        "position_name": "Supervisor de Operaciones",
-        "drv": "Sur",
-        "uen": "UEN Sur 1", 
-        "sharp": "54321",
-        "sap_code": "SAP003",
-        "status": "Inactivo"
+        "employee_number": "EMP345678",
+        "full_name": "Roberto Silva Martínez",
+        "area": "Operaciones",
+        "position": "Supervisor",
+        "drv": "DRV_SUR_01",
+        "uen": "UEN Sur 3",
+        "hire_date": "2023-01-10",
+        "status": "active",
+        "salary": 42000,
+        "commission_eligible": true
       }
     ]
   }'
 ```
 </RequestExample>
 
-<ParamField body="year" type="integer" required>
-Year for the headcount period (e.g., 2024)
+<ParamField body="period" type="string" required>
+Target period in YYYY-MM format for headcount data
 </ParamField>
 
-<ParamField body="month" type="integer" required>
-Month for the headcount period (1-12)
-</ParamField>
-
-<ParamField body="payload" type="array" required>
-Array of employee records with complete organizational information
+<ParamField body="employees" type="array" required>
+Array of employee records with complete headcount information
 
 <Expandable title="Employee Record Structure">
-  <ParamField body="email" type="string" required>
-  Employee's corporate email address (must be unique)
+  <ParamField body="employee_number" type="string" required>
+  Unique employee identifier in the system
   </ParamField>
   
-  <ParamField body="nombre" type="string" required>
-  Employee's full name (first and last names)
+  <ParamField body="full_name" type="string" required>
+  Complete employee name
   </ParamField>
   
-  <ParamField body="area_name" type="string" required>
-  Department or area name (e.g., "Ventas", "Marketing", "Operaciones")
+  <ParamField body="area" type="string" required>
+  Business area or department name
   </ParamField>
   
-  <ParamField body="position_name" type="string" required>
-  Job position title (e.g., "Ejecutivo de Ventas Senior")
+  <ParamField body="position" type="string" required>
+  Job position or role title
   </ParamField>
   
-  <ParamField body="drv" type="string">
-  Regional Distribution (DRV) assignment
+  <ParamField body="drv" type="string" required>
+  Regional Sales Division identifier
   </ParamField>
   
-  <ParamField body="uen" type="string">
-  Strategic Business Unit (UEN) assignment
+  <ParamField body="uen" type="string" required>
+  Strategic Business Unit identifier
   </ParamField>
   
-  <ParamField body="sharp" type="string">
-  Employee's SHARP identification code
+  <ParamField body="hire_date" type="string" required>
+  Employee hire date in YYYY-MM-DD format
   </ParamField>
   
-  <ParamField body="sap_code" type="string">
-  SAP system identification code
+  <ParamField body="status" type="string" required>
+  Employee status (active, inactive, terminated)
   </ParamField>
   
-  <ParamField body="status" type="string">
-  Employee status ("Activo", "Inactivo", "Suspendido")
+  <ParamField body="salary" type="number">
+  Base salary amount
+  </ParamField>
+  
+  <ParamField body="commission_eligible" type="boolean">
+  Whether employee is eligible for commission programs
   </ParamField>
 </Expandable>
 </ParamField>
@@ -587,71 +599,67 @@ Array of employee records with complete organizational information
 ```json Success
 {
   "success": true,
-  "period": {
-    "id": 156,
-    "year": "2024",
-    "month": "12",
-    "created": "2024-12-15T14:30:00+00:00"
-  },
+  "message": "Datos de headcount procesados exitosamente",
   "processing_summary": {
-    "total_records": 3,
-    "created": 2,
-    "updated": 1,
-    "failed": 0,
-    "skipped": 0
+    "total_employees": 3,
+    "processed_employees": 3,
+    "failed_employees": 0,
+    "new_records": 1,
+    "updated_records": 2
   },
-  "details": {
-    "created_records": [
-      {
-        "email": "juan.perez@modelogroup.com",
-        "nombre": "Juan Pérez García",
-        "area_id": 5,
-        "position_id": 12
-      },
-      {
-        "email": "maria.gonzalez@modelogroup.com",
-        "nombre": "María González López", 
-        "area_id": 3,
-        "position_id": 8
-      }
-    ],
-    "updated_records": [
-      {
-        "email": "carlos.rodriguez@modelogroup.com",
-        "nombre": "Carlos Rodríguez Martínez",
-        "previous_status": "Activo",
-        "new_status": "Inactivo"
-      }
-    ]
+  "period_info": {
+    "resolved_period": "2024-12",
+    "period_id": 156,
+    "status": "active"
   },
-  "errors": []
+  "processed_records": [
+    {
+      "employee_number": "EMP123456",
+      "action": "updated",
+      "changes": ["salary", "position"]
+    },
+    {
+      "employee_number": "EMP789012",
+      "action": "updated",
+      "changes": ["uen"]
+    },
+    {
+      "employee_number": "EMP345678",
+      "action": "created",
+      "changes": []
+    }
+  ]
 }
 ```
 </ResponseExample>
 
 <ResponseExample>
-```json Partial Success with Errors
+```json Error - Partial Success
 {
-  "success": true,
-  "period": {
-    "id": 156,
-    "year": "2024", 
-    "month": "12"
-  },
+  "success": false,
+  "message": "Procesamiento completado con errores",
   "processing_summary": {
-    "total_records": 5,
-    "created": 3,
-    "updated": 1,
-    "failed": 1,
-    "skipped": 0
+    "total_employees": 3,
+    "processed_employees": 2,
+    "failed_employees": 1
   },
-  "errors": [
+  "processed_records": [
     {
-      "record_index": 4,
-      "email": "invalid.email@domain",
-      "error": "Area 'Ventas Especiales' no encontrada en el sistema",
-      "field": "area_name",
-      "value": "Ventas Especiales"
+      "employee_number": "EMP123456",
+      "action": "updated",
+      "status": "success"
+    },
+    {
+      "employee_number": "EMP789012",
+      "action": "created",
+      "status": "success"
+    }
+  ],
+  "failed_records": [
+    {
+      "employee_number": "EMP345678",
+      "error": "DRV no válido: DRV_INVALID_01",
+      "details": "El DRV especificado no existe en el sistema"
     }
   ]
 }
@@ -659,21 +667,22 @@ Array of employee records with complete organizational information
 </ResponseExample>
 
 <Info>
-The system automatically resolves or creates the period based on year and month. Areas and positions are matched by name and created if they don't exist. The process includes comprehensive validation and error reporting for each record.
+The system automatically resolves periods and validates area/position combinations against the organizational structure. Employee records are matched by employee_number for updates or created as new records.
 </Info>
 
 ---
 
-## Mechanic Controller
+# Mechanic Controller
 
-Configures mechanic grids, areas, positions, KPIs, and award types for the incentive system.
+## Get Areas List
 
-### Get Areas
+Retrieve list of business areas for mechanic configuration.
 
 <RequestExample>
 ```bash cURL
 curl -X GET '/api/v2/support/mechanic/areas' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
@@ -681,23 +690,39 @@ curl -X GET '/api/v2/support/mechanic/areas' \
 ```json Success
 {
   "success": true,
-  "data": [
+  "areas": [
     {
       "id": 1,
       "name": "Ventas",
-      "created": "2024-01-15T10:30:00Z"
+      "description": "Área de Ventas Corporativas",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "Marketing",
+      "description": "Área de Marketing y Comunicaciones",
+      "status": "active"
+    },
+    {
+      "id": 3,
+      "name": "Operaciones",
+      "description": "Área de Operaciones y Logística",
+      "status": "active"
     }
   ]
 }
 ```
 </ResponseExample>
 
-### Get Positions
+## Get Positions List
+
+Retrieve list of job positions for mechanic configuration.
 
 <RequestExample>
 ```bash cURL
-curl -X GET '/api/v2/support/mechanic/positions_news' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+curl -X GET '/api/v2/support/mechanic/positions' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
@@ -705,23 +730,39 @@ curl -X GET '/api/v2/support/mechanic/positions_news' \
 ```json Success
 {
   "success": true,
-  "data": [
+  "positions": [
     {
       "id": 1,
-      "name": "Ejecutivo de Ventas",
-      "created": "2024-01-15T10:30:00Z"
+      "name": "Ejecutivo Junior",
+      "description": "Ejecutivo de Ventas Nivel Junior",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "Ejecutivo Senior",
+      "description": "Ejecutivo de Ventas Nivel Senior",
+      "status": "active"
+    },
+    {
+      "id": 3,
+      "name": "Coordinador",
+      "description": "Coordinador de Área",
+      "status": "active"
     }
   ]
 }
 ```
 </ResponseExample>
 
-### Get KPIs
+## Get KPIs List
+
+Retrieve list of available KPIs for mechanic rules.
 
 <RequestExample>
 ```bash cURL
-curl -X GET '/api/v2/support/mechanic/kpis_news' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+curl -X GET '/api/v2/support/mechanic/kpis' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
@@ -729,23 +770,42 @@ curl -X GET '/api/v2/support/mechanic/kpis_news' \
 ```json Success
 {
   "success": true,
-  "data": [
+  "kpis": [
     {
       "id": 1,
       "name": "Ventas Mensuales",
-      "created": "2024-01-15T10:30:00Z"
+      "description": "Meta de ventas mensuales en pesos",
+      "unit": "MXN",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "Satisfacción Cliente",
+      "description": "Índice de satisfacción del cliente",
+      "unit": "score",
+      "status": "active"
+    },
+    {
+      "id": 3,
+      "name": "Eficiencia Operacional",
+      "description": "Porcentaje de eficiencia en procesos",
+      "unit": "percentage",
+      "status": "active"
     }
   ]
 }
 ```
 </ResponseExample>
 
-### Get Award Types
+## Get Award Types
+
+Retrieve list of available award types for mechanic rules.
 
 <RequestExample>
 ```bash cURL
 curl -X GET '/api/v2/support/mechanic/award_types' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json'
 ```
 </RequestExample>
 
@@ -753,35 +813,33 @@ curl -X GET '/api/v2/support/mechanic/award_types' \
 ```json Success
 {
   "success": true,
-  "data": [
+  "award_types": [
     {
       "id": 1,
       "name": "Puntos",
-      "created": "2024-01-15T10:30:00Z"
+      "description": "Recompensa en puntos canjeables",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "Efectivo",
+      "description": "Recompensa monetaria directa",
+      "status": "active"
+    },
+    {
+      "id": 3,
+      "name": "Mixto",
+      "description": "Combinación de puntos y efectivo",
+      "status": "active"
     }
   ]
 }
 ```
 </ResponseExample>
 
-### Get Mechanic Grid
+## Save Mechanic Grid
 
-<RequestExample>
-```bash cURL
-curl -X GET '/api/v2/support/mechanic/grid?year=2024&month=12' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
-```
-</RequestExample>
-
-<ParamField query="year" type="integer" required>
-Year for the mechanic grid period
-</ParamField>
-
-<ParamField query="month" type="integer" required>
-Month for the mechanic grid period (1-12)
-</ParamField>
-
-### Save Mechanic Grid
+Create and update complex incentive rules with comprehensive validation and conflict detection.
 
 <RequestExample>
 ```bash cURL
@@ -1016,6 +1074,35 @@ Array of mechanic configuration records defining incentive rules
 ```
 </ResponseExample>
 
+<ResponseExample>
+```json Error - Rule Conflict
+{
+  "success": false,
+  "error": "RuleConflictException",
+  "message": "Conflicto detectado entre reglas de mecánica",
+  "conflicts": [
+    {
+      "rule_1": {
+        "id": 1001,
+        "area": "Ventas",
+        "position": "Ejecutivo",
+        "kpi": "Ventas Mensuales"
+      },
+      "rule_2": {
+        "id": 1005,
+        "area": "Ventas", 
+        "position": "Ejecutivo",
+        "kpi": "Ventas Mensuales"
+      },
+      "conflict_type": "overlapping_criteria",
+      "message": "Múltiples reglas activas para la misma combinación área/posición/KPI"
+    }
+  ],
+  "code": 409
+}
+```
+</ResponseExample>
+
 <Info>
 The mechanic grid system supports complex incentive rules with multiple award types, tiered structures, and conditional logic. Historical records are automatically maintained for audit purposes.
 </Info>
@@ -1026,54 +1113,122 @@ Mechanic rules are applied in real-time to performance calculations. Ensure thor
 
 ---
 
-## Reports Controller
+# Reports Controller
 
-Generates and provides access to various reports and processing logs.
+## Download Log Files
 
-### Download Processing Log
+Download system log files for debugging and monitoring purposes.
 
 <RequestExample>
 ```bash cURL
-curl -X GET '/api/v2/support/reports/download_log/goals-20241215-143000.xlsx.txt' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+curl -X GET '/api/v2/support/reports/downloadLog?file=system.log' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  --output system.log
 ```
 </RequestExample>
 
-<ParamField path="file" type="string" required>
+<ParamField query="file" type="string" required>
 Name of the log file to download
 </ParamField>
 
-<Info>
-This endpoint returns the log file as a downloadable attachment with appropriate headers.
-</Info>
-
-### Download Headcount Report
-
-<RequestExample>
-```bash cURL
-curl -X GET '/api/v2/support/reports/download_headcount' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
-```
-</RequestExample>
-
 <ResponseExample>
-```
-Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-Content-Disposition: attachment; filename="headcount-report-20241215.xlsx"
+```json Success
+{
+  "success": true,
+  "file_info": {
+    "filename": "system.log",
+    "size": "2.5MB",
+    "last_modified": "2024-12-15T14:30:00+00:00",
+    "download_url": "/tmp/downloads/system_20241215_143000.log"
+  }
+}
 ```
 </ResponseExample>
 
-<Tip>
-The headcount report is generated dynamically and includes comprehensive organizational data formatted as an Excel spreadsheet.
-</Tip>
+## Generate Headcount Report
+
+Generate and download comprehensive headcount reports in Excel format.
+
+<RequestExample>
+```bash cURL
+curl -X GET '/api/v2/support/reports/downloadHeadcount?period=2024-12&format=xlsx' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  --output headcount_report_2024-12.xlsx
+```
+</RequestExample>
+
+<ParamField query="period" type="string" required>
+Period for the report in YYYY-MM format
+</ParamField>
+
+<ParamField query="format" type="string">
+Report format (xlsx, csv). Default: xlsx
+</ParamField>
+
+<ParamField query="drv" type="string">
+Filter by specific DRV
+</ParamField>
+
+<ParamField query="uen" type="string">
+Filter by specific UEN
+</ParamField>
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "report_info": {
+    "filename": "headcount_report_2024-12.xlsx",
+    "period": "2024-12",
+    "total_records": 1250,
+    "generation_time": "2024-12-15T14:30:00+00:00",
+    "file_size": "1.8MB",
+    "download_url": "/tmp/reports/headcount_2024-12_20241215_143000.xlsx"
+  },
+  "summary": {
+    "total_employees": 1250,
+    "active_employees": 1180,
+    "inactive_employees": 70,
+    "by_drv": {
+      "DRV_NORTE_01": 420,
+      "DRV_CENTRO_01": 380,
+      "DRV_SUR_01": 450
+    }
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Report Generation
+{
+  "success": false,
+  "error": "ReportGenerationException",
+  "message": "Error al generar el reporte solicitado",
+  "details": {
+    "report_type": "headcount_summary",
+    "parameters": {
+      "period": "2024-12",
+      "drv": "DRV_NORTE"
+    },
+    "error_details": "Datos insuficientes para el período especificado",
+    "data_availability": {
+      "total_records": 0,
+      "expected_minimum": 1
+    }
+  },
+  "code": 400
+}
+```
+</ResponseExample>
 
 ---
 
-## Error Handling
+# Error Handling
 
 The Support Module API uses standard HTTP status codes and provides detailed error responses to help developers understand and resolve issues.
 
-### Common Error Responses
+## Common Error Responses
 
 <ResponseExample>
 ```json Authentication Error (401)
@@ -1112,38 +1267,6 @@ The Support Module API uses standard HTTP status codes and provides detailed err
 </ResponseExample>
 
 <ResponseExample>
-```json File Processing Error (400)
-{
-  "success": false,
-  "error": "FileProcessingException",
-  "message": "Error al procesar el archivo cargado",
-  "details": {
-    "file_name": "goals_december_2024.xlsx",
-    "file_size": "2.5MB",
-    "processing_errors": [
-      {
-        "row": 15,
-        "column": "employee_number",
-        "message": "Número de empleado no encontrado en el sistema",
-        "value": "EMP999999"
-      },
-      {
-        "row": 23,
-        "column": "goal_amount",
-        "message": "El monto de la meta debe ser un número positivo",
-        "value": "-1500"
-      }
-    ],
-    "total_rows": 150,
-    "processed_rows": 148,
-    "failed_rows": 2
-  },
-  "code": 400
-}
-```
-</ResponseExample>
-
-<ResponseExample>
 ```json Database Error (500)
 {
   "success": false,
@@ -1173,159 +1296,6 @@ The Support Module API uses standard HTTP status codes and provides detailed err
 ```
 </ResponseExample>
 
-### Controller-Specific Errors
-
-#### Assignments Controller Errors
-
-<ResponseExample>
-```json Layout Upload Error
-{
-  "success": false,
-  "error": "LayoutValidationException",
-  "message": "El archivo de layout no cumple con la estructura requerida",
-  "validation_errors": [
-    {
-      "sheet": "Assignments",
-      "issue": "missing_required_columns",
-      "missing_columns": ["employee_number", "drv", "uen"],
-      "found_columns": ["nombre", "area", "posicion"]
-    },
-    {
-      "sheet": "Assignments", 
-      "row": 5,
-      "issue": "invalid_drv_format",
-      "message": "El formato de DRV debe ser 'DRV_XXXXX'",
-      "provided_value": "Norte"
-    }
-  ]
-}
-```
-</ResponseExample>
-
-#### Collaborators Controller Errors
-
-<ResponseExample>
-```json Collaborator Not Found
-{
-  "success": false,
-  "error": "CollaboratorNotFoundException",
-  "message": "Colaborador no encontrado",
-  "details": {
-    "employee_number": "EMP123456",
-    "search_criteria": {
-      "active_only": true,
-      "include_inactive": false
-    }
-  },
-  "code": 404
-}
-```
-</ResponseExample>
-
-#### Goals Controller Errors
-
-<ResponseExample>
-```json Platform Date Error
-{
-  "success": false,
-  "error": "PlatformDateException",
-  "message": "La plataforma no está abierta para el período especificado",
-  "details": {
-    "requested_period": "2024-12",
-    "platform_status": "closed",
-    "opening_date": "2024-12-01T00:00:00+00:00",
-    "closing_date": "2024-11-25T23:59:59+00:00",
-    "current_date": "2024-12-15T14:30:00+00:00"
-  },
-  "code": 403
-}
-```
-</ResponseExample>
-
-#### Headcount Controller Errors
-
-<ResponseExample>
-```json Period Resolution Error
-{
-  "success": false,
-  "error": "PeriodResolutionException",
-  "message": "No se pudo resolver el período para los datos proporcionados",
-  "details": {
-    "provided_periods": ["2024-12", "2024-11", "2024-10"],
-    "resolution_attempts": [
-      {
-        "period": "2024-12",
-        "status": "not_found",
-        "message": "Período no existe en la base de datos"
-      },
-      {
-        "period": "2024-11", 
-        "status": "closed",
-        "message": "Período cerrado para modificaciones"
-      }
-    ]
-  },
-  "code": 400
-}
-```
-</ResponseExample>
-
-#### Mechanic Controller Errors
-
-<ResponseExample>
-```json Rule Conflict Error
-{
-  "success": false,
-  "error": "RuleConflictException",
-  "message": "Conflicto detectado entre reglas de mecánica",
-  "conflicts": [
-    {
-      "rule_1": {
-        "id": 1001,
-        "area": "Ventas",
-        "position": "Ejecutivo",
-        "kpi": "Ventas Mensuales"
-      },
-      "rule_2": {
-        "id": 1005,
-        "area": "Ventas", 
-        "position": "Ejecutivo",
-        "kpi": "Ventas Mensuales"
-      },
-      "conflict_type": "overlapping_criteria",
-      "message": "Múltiples reglas activas para la misma combinación área/posición/KPI"
-    }
-  ],
-  "code": 409
-}
-```
-</ResponseExample>
-
-#### Reports Controller Errors
-
-<ResponseExample>
-```json Report Generation Error
-{
-  "success": false,
-  "error": "ReportGenerationException",
-  "message": "Error al generar el reporte solicitado",
-  "details": {
-    "report_type": "headcount_summary",
-    "parameters": {
-      "period": "2024-12",
-      "drv": "DRV_NORTE"
-    },
-    "error_details": "Datos insuficientes para el período especificado",
-    "data_availability": {
-      "total_records": 0,
-      "expected_minimum": 1
-    }
-  },
-  "code": 400
-}
-```
-</ResponseExample>
-
 <Info>
 Error responses include detailed information to help developers identify and resolve issues quickly. Always check the `error` field for the specific exception type and `validation_errors` for field-level issues.
 </Info>
@@ -1334,17 +1304,31 @@ Error responses include detailed information to help developers identify and res
 Database errors (500) are logged automatically. If you encounter persistent 500 errors, contact the system administrator with the provided `error_id`.
 </Warning>
 
-## Rate Limiting
+---
 
-<Warning>
-Support module endpoints may have extended processing times, especially for file uploads and report generation. Implement appropriate timeout handling in your client applications.
-</Warning>
+# Rate Limiting
 
-## Best Practices
+The Support Module API implements rate limiting to ensure fair usage and system stability.
+
+- **Standard endpoints**: 100 requests per minute per API key
+- **File upload endpoints**: 10 requests per minute per API key
+- **Report generation**: 5 requests per minute per API key
+
+<Tip>
+Monitor the `X-RateLimit-Remaining` header in responses to track your current rate limit status.
+</Tip>
+
+---
+
+# Best Practices
 
 <Steps>
 <Step title="Authentication">
-  Always include a valid Bearer token in the Authorization header for all requests.
+  Always include the Authorization header with a valid Bearer token for all requests.
+  
+  <Check>
+  Verify token validity before making batch operations.
+  </Check>
 </Step>
 
 <Step title="File Validation">
