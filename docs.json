@@ -1,7 +1,6 @@
-{
+﻿{
   "$schema": "https://mintlify.com/schema.json",
   "name": "Starter Kit",
-  "theme": "mint",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
@@ -49,73 +48,78 @@
       "url": "https://mintlify.com/blog"
     }
   ],
-  "navigation": [
-    {
-      "group": "Get Started",
-      "pages": [
-        "introduction",
-        "quickstart",
-        "development"
-      ]
-    },
-    {
-      "group": "Essentials",
-      "pages": [
-        "essentials/markdown",
-        "essentials/code",
-        "essentials/images",
-        "essentials/settings",
-        "essentials/navigation",
-        "essentials/reusable-snippets"
-      ]
-    },
-    {
-      "group": "API Documentation",
-      "pages": [
-        "api-reference/introduction"
-      ]
-    },
-    {
-      "group": "Purchase Orders API",
-      "pages": [
-        "api-reference/purchase-orders/overview",
-        {
-          "group": "Shopping Cart",
-          "pages": [
-            "api-reference/purchase-orders/add-to-cart",
-            "api-reference/purchase-orders/remove-from-cart"
-          ]
-        },
-        {
-          "group": "Direct Redemption",
-          "pages": [
-            "api-reference/purchase-orders/direct-redemption"
-          ]
-        },
-        {
-          "group": "Order Management",
-          "pages": [
-            "api-reference/purchase-orders/purchase-cart",
-            "api-reference/purchase-orders/order-history",
-            "api-reference/purchase-orders/order-details",
-            "api-reference/purchase-orders/cancel-order"
-          ]
-        }
-      ]
-    },
-    {
-      "group": "Endpoint Examples",
-      "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete",
-        "api-reference/endpoint/webhook"
-      ]
-    }
-  ],
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "quickstart",
+          "development"
+        ]
+      },
+      {
+        "group": "Essentials",
+        "pages": [
+          "essentials/markdown",
+          "essentials/code",
+          "essentials/images",
+          "essentials/settings",
+          "essentials/navigation",
+          "essentials/reusable-snippets"
+        ]
+      },
+      {
+        "group": "API Documentation",
+        "pages": [
+          "api-reference/introduction"
+        ]
+      },
+      {
+        "group": "Purchase Orders API",
+        "pages": [
+          "api-reference/purchase-orders/overview"
+        ],
+        "groups": [
+          {
+            "group": "Shopping Cart",
+            "pages": [
+              "api-reference/purchase-orders/add-to-cart",
+              "api-reference/purchase-orders/remove-from-cart"
+            ]
+          },
+          {
+            "group": "Direct Redemption",
+            "pages": [
+              "api-reference/purchase-orders/direct-redemption"
+            ]
+          },
+          {
+            "group": "Order Management",
+            "pages": [
+              "api-reference/purchase-orders/purchase-cart",
+              "api-reference/purchase-orders/order-history",
+              "api-reference/purchase-orders/order-details",
+              "api-reference/purchase-orders/cancel-order"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Endpoint Examples",
+        "pages": [
+          "api-reference/endpoint/get",
+          "api-reference/endpoint/create",
+          "api-reference/endpoint/delete",
+          "api-reference/endpoint/webhook"
+        ]
+      }
+    ]
+  },
   "footerSocials": {
     "x": "https://x.com/mintlify",
     "github": "https://github.com/mintlify",
     "linkedin": "https://www.linkedin.com/company/mintlify"
-  }
+  },
+  "theme": "mint"
 }
