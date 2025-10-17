@@ -1,0 +1,335 @@
+---
+title: "Remove from Shopping Cart"
+api: "DELETE https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/remove/{cart_item_id}"
+description: "Remove a specific item from the collaborator's shopping cart"
+---
+
+## Overview
+
+This endpoint allows collaborators to remove specific items from their shopping cart. You can remove individual cart items by their unique cart item ID.
+
+<RequestExample>
+```bash cURL
+curl -X DELETE 'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/remove/item_001' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/shopping-cart/remove/item_001', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${apiToken}`
+  }
+});
+```
+
+```python Python
+import requests
+
+response = requests.delete(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/remove/item_001',
+  headers={
+    'Authorization': f'Bearer {api_token}'
+  }
+)
+```
+</RequestExample>
+
+## Parameters
+
+<ParamField path="cart_item_id" type="string" required>
+  Unique identifier of the cart item to remove. This ID is obtained from the shopping cart contents.
+</ParamField>
+
+## Alternative Endpoint: Remove by Product ID
+
+You can also remove items by product ID using this alternative endpoint:
+
+<RequestExample>
+```bash cURL - Remove by Product ID
+curl -X DELETE 'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/remove' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN' \
+  -d '{
+    "product_id": "prod_12345",
+    "quantity": 1
+  }'
+```
+
+```javascript Node.js - Remove by Product ID
+const response = await fetch('/api/v2/collaborator/purchase-orders/shopping-cart/remove', {
+  method: 'DELETE',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiToken}`
+  },
+  body: JSON.stringify({
+    product_id: 'prod_12345',
+    quantity: 1
+  })
+});
+```
+</RequestExample>
+
+### Alternative Parameters
+
+<ParamField body="product_id" type="string" required>
+  Product identifier to remove from cart
+</ParamField>
+
+<ParamField body="quantity" type="integer">
+  Number of units to remove. If not specified or greater than cart quantity, removes all units of this product.
+</ParamField>
+
+## Response Examples
+
+<ResponseExample>
+```json Success - Item Removed (200 OK)
+{
+  "success": true,
+  "data": {
+    "removed_item": {
+      "cart_item_id": "item_001",
+      "product_id": "prod_12345",
+      "product_name": "Smartphone Samsung Galaxy",
+      "quantity": 2,
+      "total_points": 1000
+    },
+    "cart_summary": {
+      "total_items": 2,
+      "total_quantity": 3,
+      "total_points": 1300
+    }
+  },
+  "message": "Producto removido del carrito exitosamente"
+}
+```
+
+```json Success - Quantity Reduced (200 OK)
+{
+  "success": true,
+  "data": {
+    "updated_item": {
+      "cart_item_id": "item_001",
+      "product_id": "prod_12345",
+      "product_name": "Smartphone Samsung Galaxy",
+      "quantity": 1,
+      "total_points": 500
+    },
+    "cart_summary": {
+      "total_items": 3,
+      "total_quantity": 4,
+      "total_points": 1800
+    }
+  },
+  "message": "Cantidad reducida en el carrito"
+}
+```
+
+```json Success - Empty Cart (200 OK)
+{
+  "success": true,
+  "data": {
+    "removed_item": {
+      "cart_item_id": "item_001",
+      "product_id": "prod_12345",
+      "product_name": "Smartphone Samsung Galaxy",
+      "quantity": 1,
+      "total_points": 500
+    },
+    "cart_summary": {
+      "total_items": 0,
+      "total_quantity": 0,
+      "total_points": 0
+    }
+  },
+  "message": "Carrito vacío después de remover el último producto"
+}
+```
+
+```json Item Not Found (404 Not Found)
+{
+  "error": {
+    "code": "CART_ITEM_NOT_FOUND",
+    "message": "El elemento del carrito no existe",
+    "details": {
+      "cart_item_id": "item_invalid"
+    }
+  }
+}
+```
+
+```json Product Not in Cart (404 Not Found)
+{
+  "error": {
+    "code": "PRODUCT_NOT_IN_CART",
+    "message": "El producto no está en el carrito",
+    "details": {
+      "product_id": "prod_99999"
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="removed_item" type="object">
+  Details of the item that was completely removed from cart
+  
+  <Expandable title="Removed Item Properties">
+    <ResponseField name="cart_item_id" type="string">
+      Unique identifier of the removed cart item
+    </ResponseField>
+    
+    <ResponseField name="product_id" type="string">
+      Product identifier that was removed
+    </ResponseField>
+    
+    <ResponseField name="product_name" type="string">
+      Display name of the removed product
+    </ResponseField>
+    
+    <ResponseField name="quantity" type="integer">
+      Number of units that were removed
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points that were freed up by removing this item
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="updated_item" type="object">
+  Details of the item that had its quantity reduced (but not completely removed)
+  
+  <Expandable title="Updated Item Properties">
+    <ResponseField name="cart_item_id" type="string">
+      Unique identifier of the updated cart item
+    </ResponseField>
+    
+    <ResponseField name="product_id" type="string">
+      Product identifier that was updated
+    </ResponseField>
+    
+    <ResponseField name="product_name" type="string">
+      Display name of the updated product
+    </ResponseField>
+    
+    <ResponseField name="quantity" type="integer">
+      Remaining quantity after removal
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Updated total points for this item
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="cart_summary" type="object">
+  Updated cart totals after removing the item
+  
+  <Expandable title="Cart Summary Properties">
+    <ResponseField name="total_items" type="integer">
+      Number of different products remaining in cart
+    </ResponseField>
+    
+    <ResponseField name="total_quantity" type="integer">
+      Total number of individual units remaining across all products
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points required for all remaining items in cart
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## System Behavior
+
+<AccordionGroup>
+  <Accordion title="Complete Item Removal">
+    When removing by `cart_item_id` or when `quantity` equals or exceeds cart quantity:
+    - Removes entire cart item entry
+    - Returns `removed_item` in response
+    - Updates cart totals accordingly
+  </Accordion>
+  
+  <Accordion title="Partial Quantity Removal">
+    When removing specific quantity less than cart quantity:
+    - Reduces item quantity by specified amount
+    - Returns `updated_item` in response
+    - Maintains same `cart_item_id`
+  </Accordion>
+  
+  <Accordion title="Empty Cart Result">
+    When removing the last item from cart:
+    - Cart summary shows all zeros
+    - Special message indicates empty cart state
+    - Cart session remains active for future additions
+  </Accordion>
+</AccordionGroup>
+
+## Removal Methods Comparison
+
+| Method | Use Case | Precision | Response |
+|--------|----------|-----------|----------|
+| By `cart_item_id` | Remove specific cart entry | Exact item removal | Always removes entire item |
+| By `product_id` | Remove product units | Quantity-based | Can remove partial quantities |
+
+## Best Practices
+
+<Tip>
+**Use Cart Item ID**: For precise removal operations, use the cart item ID method to avoid ambiguity when the same product appears multiple times.
+</Tip>
+
+<Note>
+**Quantity Validation**: When removing by product ID with quantity, the system will remove all units if the specified quantity exceeds the cart quantity.
+</Note>
+
+<Warning>
+**Concurrent Modifications**: If the cart is modified by another session between viewing and removing, the operation may fail. Always handle 404 errors gracefully.
+</Warning>
+
+## Error Handling
+
+Common error scenarios and recommended handling:
+
+| Error Code | Recommended Action |
+|------------|-------------------|
+| `CART_ITEM_NOT_FOUND` | Refresh cart contents and update UI |
+| `PRODUCT_NOT_IN_CART` | Remove item from client-side cart display |
+| `INVALID_QUANTITY` | Validate quantity input on client side |
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Get Shopping Cart" icon="shopping-cart" href="/api-reference/purchase-orders/get-shopping-cart">
+    View current cart contents to get cart item IDs
+  </Card>
+  <Card title="Add to Cart" icon="plus" href="/api-reference/purchase-orders/add-to-cart">
+    Add products back to shopping cart
+  </Card>
+  <Card title="Clear Cart" icon="trash-can" href="/api-reference/purchase-orders/clear-cart">
+    Remove all items from cart at once
+  </Card>
+</CardGroup>
+
+## Usage Examples
+
+<Steps>
+  <Step title="Get Cart Contents">
+    First, retrieve the shopping cart to get cart item IDs
+  </Step>
+  
+  <Step title="Identify Item to Remove">
+    Use the `cart_item_id` from the cart contents response
+  </Step>
+  
+  <Step title="Remove Item">
+    Call the remove endpoint with the specific cart item ID
+  </Step>
+  
+  <Step title="Update UI">
+    Refresh cart display with updated totals from the response
+  </Step>
+</Steps>

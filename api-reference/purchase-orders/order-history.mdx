@@ -1,0 +1,450 @@
+---
+title: "Order History"
+api: "GET https://api.example.com/api/v2/collaborator/purchase-orders/history"
+description: "Retrieve the collaborator's purchase order history with pagination and filtering options"
+---
+
+## Overview
+
+This endpoint returns a paginated list of the collaborator's purchase orders, including order details, status, and delivery information. Supports filtering by date range and order status.
+
+<RequestExample>
+```bash cURL
+curl -X GET 'https://api.example.com/api/v2/collaborator/purchase-orders/history?page=1&limit=10&status=confirmed' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/history?page=1&limit=10&status=confirmed', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${apiToken}`
+  }
+});
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/history',
+  headers={
+    'Authorization': f'Bearer {api_token}'
+  },
+  params={
+    'page': 1,
+    'limit': 10,
+    'status': 'confirmed'
+  }
+)
+```
+</RequestExample>
+
+## Query Parameters
+
+<ParamField query="page" type="integer" default="1">
+  Page number for pagination (1-based indexing)
+</ParamField>
+
+<ParamField query="limit" type="integer" default="20">
+  Number of orders per page (maximum 100)
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by order status. Possible values: `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`
+</ParamField>
+
+<ParamField query="start_date" type="string">
+  Filter orders created after this date (ISO 8601 format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="end_date" type="string">
+  Filter orders created before this date (ISO 8601 format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="sort" type="string" default="created_at_desc">
+  Sort order for results. Options: `created_at_desc`, `created_at_asc`, `total_points_desc`, `total_points_asc`
+</ParamField>
+
+## Response Examples
+
+<ResponseExample>
+```json Success with Orders (200 OK)
+{
+  "success": true,
+  "data": {
+    "orders": [
+      {
+        "order_id": "ord_67890",
+        "status": "shipped",
+        "total_points": 2300,
+        "items_count": 3,
+        "items": [
+          {
+            "product_id": "prod_12345",
+            "product_name": "Smartphone Samsung Galaxy",
+            "product_image": "https://cdn.example.com/products/samsung-galaxy.jpg",
+            "quantity": 2,
+            "unit_points": 500,
+            "total_points": 1000
+          },
+          {
+            "product_id": "prod_67890",
+            "product_name": "Auriculares Bluetooth Sony",
+            "product_image": "https://cdn.example.com/products/sony-headphones.jpg",
+            "quantity": 1,
+            "unit_points": 300,
+            "total_points": 300
+          },
+          {
+            "product_id": "prod_11111",
+            "product_name": "Smartwatch Apple",
+            "product_image": "https://cdn.example.com/products/apple-watch.jpg",
+            "quantity": 1,
+            "unit_points": 1000,
+            "total_points": 1000
+          }
+        ],
+        "delivery_address": {
+          "street": "Av. Reforma 123, Col. Centro",
+          "city": "Ciudad de México",
+          "state": "CDMX",
+          "postal_code": "06000",
+          "country": "México"
+        },
+        "tracking_info": {
+          "tracking_number": "TRK123456789",
+          "carrier": "DHL",
+          "estimated_delivery": "2024-01-22T00:00:00Z",
+          "last_update": "2024-01-18T14:30:00Z",
+          "current_location": "Centro de Distribución CDMX"
+        },
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-18T14:30:00Z"
+      },
+      {
+        "order_id": "ord_54321",
+        "status": "delivered",
+        "total_points": 800,
+        "items_count": 1,
+        "items": [
+          {
+            "product_id": "prod_99999",
+            "product_name": "Tablet iPad Air",
+            "product_image": "https://cdn.example.com/products/ipad-air.jpg",
+            "quantity": 1,
+            "unit_points": 800,
+            "total_points": 800
+          }
+        ],
+        "delivery_address": {
+          "street": "Calle Insurgentes 456, Col. Roma",
+          "city": "Ciudad de México",
+          "state": "CDMX",
+          "postal_code": "06700",
+          "country": "México"
+        },
+        "tracking_info": {
+          "tracking_number": "TRK987654321",
+          "carrier": "FedEx",
+          "delivered_at": "2024-01-10T16:45:00Z",
+          "delivered_to": "Recibido por: Juan Pérez"
+        },
+        "created_at": "2024-01-05T09:15:00Z",
+        "updated_at": "2024-01-10T16:45:00Z"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "per_page": 10,
+      "total_orders": 25,
+      "total_pages": 3,
+      "has_next_page": true,
+      "has_previous_page": false
+    },
+    "summary": {
+      "total_orders": 25,
+      "total_points_spent": 18500,
+      "orders_by_status": {
+        "confirmed": 2,
+        "processing": 3,
+        "shipped": 8,
+        "delivered": 12,
+        "cancelled": 0
+      }
+    }
+  }
+}
+```
+
+```json Success - No Orders (200 OK)
+{
+  "success": true,
+  "data": {
+    "orders": [],
+    "pagination": {
+      "current_page": 1,
+      "per_page": 10,
+      "total_orders": 0,
+      "total_pages": 0,
+      "has_next_page": false,
+      "has_previous_page": false
+    },
+    "summary": {
+      "total_orders": 0,
+      "total_points_spent": 0,
+      "orders_by_status": {
+        "confirmed": 0,
+        "processing": 0,
+        "shipped": 0,
+        "delivered": 0,
+        "cancelled": 0
+      }
+    }
+  },
+  "message": "No se encontraron órdenes para los criterios especificados"
+}
+```
+
+```json Invalid Date Range (400 Bad Request)
+{
+  "error": {
+    "code": "INVALID_DATE_RANGE",
+    "message": "El rango de fechas es inválido",
+    "details": {
+      "start_date": "2024-01-15",
+      "end_date": "2024-01-10",
+      "issue": "start_date debe ser anterior a end_date"
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="orders" type="array">
+  Array of purchase orders matching the query criteria
+  
+  <Expandable title="Order Properties">
+    <ResponseField name="order_id" type="string">
+      Unique identifier for the order
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Current order status: `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points spent on this order
+    </ResponseField>
+    
+    <ResponseField name="items_count" type="integer">
+      Number of different products in this order
+    </ResponseField>
+    
+    <ResponseField name="items" type="array">
+      Array of ordered products with details
+      
+      <Expandable title="Item Properties">
+        <ResponseField name="product_id" type="string">
+          Product identifier
+        </ResponseField>
+        
+        <ResponseField name="product_name" type="string">
+          Display name of the product
+        </ResponseField>
+        
+        <ResponseField name="product_image" type="string">
+          URL to product image
+        </ResponseField>
+        
+        <ResponseField name="quantity" type="integer">
+          Number of units ordered
+        </ResponseField>
+        
+        <ResponseField name="unit_points" type="integer">
+          Points cost per unit at time of purchase
+        </ResponseField>
+        
+        <ResponseField name="total_points" type="integer">
+          Total points for this item
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="delivery_address" type="object">
+      Complete delivery address for the order
+    </ResponseField>
+    
+    <ResponseField name="tracking_info" type="object">
+      Shipping and tracking information
+      
+      <Expandable title="Tracking Properties">
+        <ResponseField name="tracking_number" type="string">
+          Shipping tracking number
+        </ResponseField>
+        
+        <ResponseField name="carrier" type="string">
+          Shipping carrier name (DHL, FedEx, etc.)
+        </ResponseField>
+        
+        <ResponseField name="estimated_delivery" type="string">
+          ISO 8601 estimated delivery date (for active shipments)
+        </ResponseField>
+        
+        <ResponseField name="delivered_at" type="string">
+          ISO 8601 actual delivery timestamp (for delivered orders)
+        </ResponseField>
+        
+        <ResponseField name="delivered_to" type="string">
+          Name of person who received the delivery
+        </ResponseField>
+        
+        <ResponseField name="current_location" type="string">
+          Current shipment location (for in-transit orders)
+        </ResponseField>
+        
+        <ResponseField name="last_update" type="string">
+          ISO 8601 timestamp of last tracking update
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp when order was created
+    </ResponseField>
+    
+    <ResponseField name="updated_at" type="string">
+      ISO 8601 timestamp of last order update
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="pagination" type="object">
+  Pagination information for the result set
+  
+  <Expandable title="Pagination Properties">
+    <ResponseField name="current_page" type="integer">
+      Current page number (1-based)
+    </ResponseField>
+    
+    <ResponseField name="per_page" type="integer">
+      Number of orders per page
+    </ResponseField>
+    
+    <ResponseField name="total_orders" type="integer">
+      Total number of orders matching criteria
+    </ResponseField>
+    
+    <ResponseField name="total_pages" type="integer">
+      Total number of pages available
+    </ResponseField>
+    
+    <ResponseField name="has_next_page" type="boolean">
+      Whether there are more pages after current
+    </ResponseField>
+    
+    <ResponseField name="has_previous_page" type="boolean">
+      Whether there are pages before current
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="summary" type="object">
+  Overall statistics for the collaborator's orders
+  
+  <Expandable title="Summary Properties">
+    <ResponseField name="total_orders" type="integer">
+      Total number of orders ever placed
+    </ResponseField>
+    
+    <ResponseField name="total_points_spent" type="integer">
+      Total points spent across all orders
+    </ResponseField>
+    
+    <ResponseField name="orders_by_status" type="object">
+      Count of orders grouped by status
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Order Status Definitions
+
+| Status | Description | Typical Duration |
+|--------|-------------|------------------|
+| `confirmed` | Order placed and payment processed | 0-1 days |
+| `processing` | Order being prepared for shipment | 1-3 days |
+| `shipped` | Order dispatched and in transit | 3-7 days |
+| `delivered` | Order successfully delivered | Final status |
+| `cancelled` | Order cancelled before shipment | Final status |
+
+## Filtering Examples
+
+<Tabs>
+  <Tab title="Recent Orders">
+    ```bash
+    # Get orders from the last 30 days
+    curl -X GET 'https://api.example.com/api/v2/collaborator/purchase-orders/history?start_date=2024-01-01&end_date=2024-01-31' \
+      -H 'Authorization: Bearer YOUR_API_TOKEN'
+    ```
+  </Tab>
+  
+  <Tab title="Shipped Orders">
+    ```bash
+    # Get only shipped orders
+    curl -X GET 'https://api.example.com/api/v2/collaborator/purchase-orders/history?status=shipped' \
+      -H 'Authorization: Bearer YOUR_API_TOKEN'
+    ```
+  </Tab>
+  
+  <Tab title="High Value Orders">
+    ```bash
+    # Get orders sorted by points spent (highest first)
+    curl -X GET 'https://api.example.com/api/v2/collaborator/purchase-orders/history?sort=total_points_desc' \
+      -H 'Authorization: Bearer YOUR_API_TOKEN'
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<Tip>
+**Pagination**: Always implement pagination for better performance. Use reasonable page sizes (10-50 orders per page).
+</Tip>
+
+<Note>
+**Caching**: Order history data can be cached for short periods (5-10 minutes) as it doesn't change frequently.
+</Note>
+
+<Warning>
+**Date Ranges**: When using date filters, ensure `start_date` is before `end_date` to avoid validation errors.
+</Warning>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Order Tracking" icon="truck">
+    Display recent orders with tracking information
+  </Card>
+  <Card title="Purchase History" icon="receipt">
+    Show complete purchase history with filtering
+  </Card>
+  <Card title="Reorder Functionality" icon="repeat">
+    Allow users to reorder previous purchases
+  </Card>
+  <Card title="Spending Analytics" icon="chart-line">
+    Analyze spending patterns and point usage
+  </Card>
+</CardGroup>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Order Details" icon="file-text" href="/api-reference/purchase-orders/order-details">
+    Get detailed information for a specific order
+  </Card>
+  <Card title="Direct Redemption" icon="zap" href="/api-reference/purchase-orders/create-direct-redemption">
+    Create new orders directly
+  </Card>
+</CardGroup>

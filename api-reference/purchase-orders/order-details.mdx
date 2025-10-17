@@ -1,0 +1,620 @@
+---
+title: "Order Details"
+api: "GET https://api.example.com/api/v2/collaborator/purchase-orders/{order_id}"
+description: "Retrieve detailed information for a specific purchase order"
+---
+
+## Overview
+
+This endpoint returns comprehensive details for a specific purchase order, including complete item information, delivery status, tracking updates, and order history.
+
+<RequestExample>
+```bash cURL
+curl -X GET 'https://api.example.com/api/v2/collaborator/purchase-orders/ord_67890' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/ord_67890', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${apiToken}`
+  }
+});
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/ord_67890',
+  headers={
+    'Authorization': f'Bearer {api_token}'
+  }
+)
+```
+</RequestExample>
+
+## Parameters
+
+<ParamField path="order_id" type="string" required>
+  Unique identifier of the order to retrieve. Must be a valid order ID belonging to the authenticated collaborator.
+</ParamField>
+
+## Response Examples
+
+<ResponseExample>
+```json Success - Active Order (200 OK)
+{
+  "success": true,
+  "data": {
+    "order_id": "ord_67890",
+    "status": "shipped",
+    "total_points": 2300,
+    "items": [
+      {
+        "product_id": "prod_12345",
+        "product_name": "Smartphone Samsung Galaxy",
+        "product_description": "Smartphone Samsung Galaxy S23 128GB Negro",
+        "product_image": "https://cdn.example.com/products/samsung-galaxy.jpg",
+        "product_images": [
+          "https://cdn.example.com/products/samsung-galaxy-1.jpg",
+          "https://cdn.example.com/products/samsung-galaxy-2.jpg",
+          "https://cdn.example.com/products/samsung-galaxy-3.jpg"
+        ],
+        "category": "Electrónicos",
+        "brand": "Samsung",
+        "sku": "SAM-GAL-S23-128-BLK",
+        "quantity": 2,
+        "unit_points": 500,
+        "total_points": 1000,
+        "unit_price_at_purchase": 500,
+        "current_unit_price": 520
+      },
+      {
+        "product_id": "prod_67890",
+        "product_name": "Auriculares Bluetooth Sony",
+        "product_description": "Auriculares Sony WH-1000XM4 con cancelación de ruido",
+        "product_image": "https://cdn.example.com/products/sony-headphones.jpg",
+        "product_images": [
+          "https://cdn.example.com/products/sony-headphones-1.jpg",
+          "https://cdn.example.com/products/sony-headphones-2.jpg"
+        ],
+        "category": "Audio",
+        "brand": "Sony",
+        "sku": "SON-WH1000XM4-BLK",
+        "quantity": 1,
+        "unit_points": 300,
+        "total_points": 300,
+        "unit_price_at_purchase": 300,
+        "current_unit_price": 300
+      },
+      {
+        "product_id": "prod_11111",
+        "product_name": "Smartwatch Apple",
+        "product_description": "Apple Watch Series 9 GPS 45mm Caja de Aluminio",
+        "product_image": "https://cdn.example.com/products/apple-watch.jpg",
+        "product_images": [
+          "https://cdn.example.com/products/apple-watch-1.jpg",
+          "https://cdn.example.com/products/apple-watch-2.jpg",
+          "https://cdn.example.com/products/apple-watch-3.jpg"
+        ],
+        "category": "Wearables",
+        "brand": "Apple",
+        "sku": "APL-WATCH-S9-45-ALU",
+        "quantity": 1,
+        "unit_points": 1000,
+        "total_points": 1000,
+        "unit_price_at_purchase": 1000,
+        "current_unit_price": 1050
+      }
+    ],
+    "delivery_address": {
+      "street": "Av. Reforma 123, Col. Centro",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "06000",
+      "country": "México",
+      "recipient_name": "Juan Pérez",
+      "recipient_phone": "+52 55 1234 5678"
+    },
+    "tracking_info": {
+      "tracking_number": "TRK123456789",
+      "carrier": "DHL",
+      "carrier_logo": "https://cdn.example.com/carriers/dhl-logo.png",
+      "estimated_delivery": "2024-01-22T00:00:00Z",
+      "last_update": "2024-01-18T14:30:00Z",
+      "current_location": "Centro de Distribución CDMX",
+      "tracking_url": "https://www.dhl.com/track?trackingNumber=TRK123456789",
+      "tracking_events": [
+        {
+          "timestamp": "2024-01-15T10:30:00Z",
+          "status": "order_confirmed",
+          "description": "Orden confirmada y en proceso",
+          "location": "Centro de Procesamiento"
+        },
+        {
+          "timestamp": "2024-01-16T09:15:00Z",
+          "status": "processing",
+          "description": "Productos preparados para envío",
+          "location": "Almacén Principal"
+        },
+        {
+          "timestamp": "2024-01-17T16:45:00Z",
+          "status": "shipped",
+          "description": "Paquete despachado",
+          "location": "Centro de Distribución"
+        },
+        {
+          "timestamp": "2024-01-18T14:30:00Z",
+          "status": "in_transit",
+          "description": "En tránsito hacia destino",
+          "location": "Centro de Distribución CDMX"
+        }
+      ]
+    },
+    "payment_info": {
+      "points_deducted": 2300,
+      "transaction_id": "txn_abc123def456",
+      "processed_at": "2024-01-15T10:30:15Z"
+    },
+    "order_notes": "Entrega en horario de oficina preferiblemente",
+    "estimated_delivery_window": {
+      "start": "2024-01-22T09:00:00Z",
+      "end": "2024-01-22T18:00:00Z"
+    },
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-18T14:30:00Z",
+    "can_cancel": false,
+    "can_modify": false,
+    "cancellation_deadline": "2024-01-15T12:30:00Z"
+  }
+}
+```
+
+```json Success - Delivered Order (200 OK)
+{
+  "success": true,
+  "data": {
+    "order_id": "ord_54321",
+    "status": "delivered",
+    "total_points": 800,
+    "items": [
+      {
+        "product_id": "prod_99999",
+        "product_name": "Tablet iPad Air",
+        "product_description": "iPad Air 10.9 pulgadas Wi-Fi 64GB Gris Espacial",
+        "product_image": "https://cdn.example.com/products/ipad-air.jpg",
+        "product_images": [
+          "https://cdn.example.com/products/ipad-air-1.jpg",
+          "https://cdn.example.com/products/ipad-air-2.jpg"
+        ],
+        "category": "Tablets",
+        "brand": "Apple",
+        "sku": "APL-IPAD-AIR-64-GREY",
+        "quantity": 1,
+        "unit_points": 800,
+        "total_points": 800,
+        "unit_price_at_purchase": 800,
+        "current_unit_price": 850
+      }
+    ],
+    "delivery_address": {
+      "street": "Calle Insurgentes 456, Col. Roma",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "06700",
+      "country": "México",
+      "recipient_name": "María González",
+      "recipient_phone": "+52 55 9876 5432"
+    },
+    "tracking_info": {
+      "tracking_number": "TRK987654321",
+      "carrier": "FedEx",
+      "carrier_logo": "https://cdn.example.com/carriers/fedex-logo.png",
+      "delivered_at": "2024-01-10T16:45:00Z",
+      "delivered_to": "Recibido por: María González",
+      "delivery_signature": "https://cdn.example.com/signatures/sig_987654321.png",
+      "tracking_url": "https://www.fedex.com/track?trackingNumber=TRK987654321",
+      "tracking_events": [
+        {
+          "timestamp": "2024-01-05T09:15:00Z",
+          "status": "order_confirmed",
+          "description": "Orden confirmada y en proceso",
+          "location": "Centro de Procesamiento"
+        },
+        {
+          "timestamp": "2024-01-06T11:30:00Z",
+          "status": "processing",
+          "description": "Productos preparados para envío",
+          "location": "Almacén Principal"
+        },
+        {
+          "timestamp": "2024-01-07T14:20:00Z",
+          "status": "shipped",
+          "description": "Paquete despachado",
+          "location": "Centro de Distribución"
+        },
+        {
+          "timestamp": "2024-01-09T10:15:00Z",
+          "status": "out_for_delivery",
+          "description": "En reparto",
+          "location": "Centro de Distribución Local"
+        },
+        {
+          "timestamp": "2024-01-10T16:45:00Z",
+          "status": "delivered",
+          "description": "Entregado exitosamente",
+          "location": "Calle Insurgentes 456"
+        }
+      ]
+    },
+    "payment_info": {
+      "points_deducted": 800,
+      "transaction_id": "txn_xyz789abc123",
+      "processed_at": "2024-01-05T09:15:30Z"
+    },
+    "delivery_confirmation": {
+      "delivered_at": "2024-01-10T16:45:00Z",
+      "received_by": "María González",
+      "signature_url": "https://cdn.example.com/signatures/sig_987654321.png",
+      "delivery_photo": "https://cdn.example.com/deliveries/del_987654321.jpg"
+    },
+    "created_at": "2024-01-05T09:15:00Z",
+    "updated_at": "2024-01-10T16:45:00Z",
+    "can_cancel": false,
+    "can_modify": false,
+    "can_reorder": true
+  }
+}
+```
+
+```json Order Not Found (404 Not Found)
+{
+  "error": {
+    "code": "ORDER_NOT_FOUND",
+    "message": "La orden especificada no existe o no pertenece a este colaborador",
+    "details": {
+      "order_id": "ord_invalid"
+    }
+  }
+}
+```
+
+```json Access Denied (403 Forbidden)
+{
+  "error": {
+    "code": "ORDER_ACCESS_DENIED",
+    "message": "No tienes permisos para acceder a esta orden",
+    "details": {
+      "order_id": "ord_67890",
+      "reason": "order_belongs_to_different_collaborator"
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="order_id" type="string">
+  Unique identifier for the order
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current order status: `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`
+</ResponseField>
+
+<ResponseField name="total_points" type="integer">
+  Total points spent on this order
+</ResponseField>
+
+<ResponseField name="items" type="array">
+  Detailed information about all ordered products
+  
+  <Expandable title="Item Properties">
+    <ResponseField name="product_id" type="string">
+      Product identifier
+    </ResponseField>
+    
+    <ResponseField name="product_name" type="string">
+      Display name of the product
+    </ResponseField>
+    
+    <ResponseField name="product_description" type="string">
+      Detailed product description
+    </ResponseField>
+    
+    <ResponseField name="product_image" type="string">
+      URL to main product image
+    </ResponseField>
+    
+    <ResponseField name="product_images" type="array">
+      Array of additional product image URLs
+    </ResponseField>
+    
+    <ResponseField name="category" type="string">
+      Product category name
+    </ResponseField>
+    
+    <ResponseField name="brand" type="string">
+      Product brand name
+    </ResponseField>
+    
+    <ResponseField name="sku" type="string">
+      Stock Keeping Unit identifier
+    </ResponseField>
+    
+    <ResponseField name="quantity" type="integer">
+      Number of units ordered
+    </ResponseField>
+    
+    <ResponseField name="unit_points" type="integer">
+      Points cost per unit
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points for this item
+    </ResponseField>
+    
+    <ResponseField name="unit_price_at_purchase" type="integer">
+      Points cost per unit at time of purchase
+    </ResponseField>
+    
+    <ResponseField name="current_unit_price" type="integer">
+      Current points cost per unit (may differ from purchase price)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="delivery_address" type="object">
+  Complete delivery address and recipient information
+  
+  <Expandable title="Address Properties">
+    <ResponseField name="street" type="string">
+      Street address
+    </ResponseField>
+    
+    <ResponseField name="city" type="string">
+      City name
+    </ResponseField>
+    
+    <ResponseField name="state" type="string">
+      State or province
+    </ResponseField>
+    
+    <ResponseField name="postal_code" type="string">
+      Postal code
+    </ResponseField>
+    
+    <ResponseField name="country" type="string">
+      Country name
+    </ResponseField>
+    
+    <ResponseField name="recipient_name" type="string">
+      Name of the recipient
+    </ResponseField>
+    
+    <ResponseField name="recipient_phone" type="string">
+      Contact phone number
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="tracking_info" type="object">
+  Comprehensive tracking and shipping information
+  
+  <Expandable title="Tracking Properties">
+    <ResponseField name="tracking_number" type="string">
+      Shipping tracking number
+    </ResponseField>
+    
+    <ResponseField name="carrier" type="string">
+      Shipping carrier name
+    </ResponseField>
+    
+    <ResponseField name="carrier_logo" type="string">
+      URL to carrier logo image
+    </ResponseField>
+    
+    <ResponseField name="estimated_delivery" type="string">
+      ISO 8601 estimated delivery date (for active shipments)
+    </ResponseField>
+    
+    <ResponseField name="delivered_at" type="string">
+      ISO 8601 actual delivery timestamp (for delivered orders)
+    </ResponseField>
+    
+    <ResponseField name="delivered_to" type="string">
+      Name of person who received the delivery
+    </ResponseField>
+    
+    <ResponseField name="current_location" type="string">
+      Current shipment location
+    </ResponseField>
+    
+    <ResponseField name="last_update" type="string">
+      ISO 8601 timestamp of last tracking update
+    </ResponseField>
+    
+    <ResponseField name="tracking_url" type="string">
+      Direct link to carrier's tracking page
+    </ResponseField>
+    
+    <ResponseField name="tracking_events" type="array">
+      Chronological list of tracking events
+      
+      <Expandable title="Event Properties">
+        <ResponseField name="timestamp" type="string">
+          ISO 8601 timestamp of the event
+        </ResponseField>
+        
+        <ResponseField name="status" type="string">
+          Event status code
+        </ResponseField>
+        
+        <ResponseField name="description" type="string">
+          Human-readable event description
+        </ResponseField>
+        
+        <ResponseField name="location" type="string">
+          Location where event occurred
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="payment_info" type="object">
+  Payment and transaction details
+  
+  <Expandable title="Payment Properties">
+    <ResponseField name="points_deducted" type="integer">
+      Total points deducted for this order
+    </ResponseField>
+    
+    <ResponseField name="transaction_id" type="string">
+      Unique transaction identifier
+    </ResponseField>
+    
+    <ResponseField name="processed_at" type="string">
+      ISO 8601 timestamp when payment was processed
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="delivery_confirmation" type="object">
+  Delivery confirmation details (only for delivered orders)
+  
+  <Expandable title="Confirmation Properties">
+    <ResponseField name="delivered_at" type="string">
+      ISO 8601 timestamp of delivery
+    </ResponseField>
+    
+    <ResponseField name="received_by" type="string">
+      Name of person who received the package
+    </ResponseField>
+    
+    <ResponseField name="signature_url" type="string">
+      URL to delivery signature image
+    </ResponseField>
+    
+    <ResponseField name="delivery_photo" type="string">
+      URL to delivery confirmation photo
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="order_notes" type="string">
+  Special delivery instructions or notes
+</ResponseField>
+
+<ResponseField name="estimated_delivery_window" type="object">
+  Expected delivery time window
+  
+  <Expandable title="Window Properties">
+    <ResponseField name="start" type="string">
+      ISO 8601 start of delivery window
+    </ResponseField>
+    
+    <ResponseField name="end" type="string">
+      ISO 8601 end of delivery window
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="can_cancel" type="boolean">
+  Whether the order can still be cancelled
+</ResponseField>
+
+<ResponseField name="can_modify" type="boolean">
+  Whether the order can still be modified
+</ResponseField>
+
+<ResponseField name="can_reorder" type="boolean">
+  Whether the same products can be reordered
+</ResponseField>
+
+<ResponseField name="cancellation_deadline" type="string">
+  ISO 8601 timestamp after which order cannot be cancelled
+</ResponseField>
+
+## Tracking Event Types
+
+| Event Status | Description | Typical Timeline |
+|--------------|-------------|------------------|
+| `order_confirmed` | Order placed and payment processed | Day 0 |
+| `processing` | Order being prepared for shipment | Days 1-2 |
+| `shipped` | Package dispatched from warehouse | Day 2-3 |
+| `in_transit` | Package in transit to destination | Days 3-6 |
+| `out_for_delivery` | Package out for final delivery | Day 6-7 |
+| `delivered` | Package successfully delivered | Day 7 |
+| `delivery_attempted` | Delivery attempted but failed | Variable |
+| `exception` | Delivery exception or delay | Variable |
+
+## Order Actions
+
+<AccordionGroup>
+  <Accordion title="Cancellation Rules">
+    Orders can be cancelled:
+    - Within 2 hours of placement
+    - Before status changes to "processing"
+    - Points are fully refunded for cancelled orders
+  </Accordion>
+  
+  <Accordion title="Modification Rules">
+    Orders can be modified:
+    - Within 1 hour of placement
+    - Only delivery address can be changed
+    - Product changes require cancellation and new order
+  </Accordion>
+  
+  <Accordion title="Reorder Capability">
+    Orders can be reordered if:
+    - All products are still available
+    - Collaborator has sufficient points
+    - Products haven't been discontinued
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+**Real-time Updates**: Tracking information is updated in real-time. Refresh order details periodically for active shipments.
+</Tip>
+
+<Note>
+**Image Optimization**: Product images are served in multiple resolutions. Use appropriate image sizes for your UI.
+</Note>
+
+<Warning>
+**Privacy**: Order details contain sensitive information. Ensure proper access controls and data protection.
+</Warning>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Order Tracking" icon="truck">
+    Display detailed tracking information and delivery updates
+  </Card>
+  <Card title="Order Management" icon="cog">
+    Allow order cancellation or modification when permitted
+  </Card>
+  <Card title="Reorder Functionality" icon="repeat">
+    Enable quick reordering of previous purchases
+  </Card>
+  <Card title="Customer Support" icon="headset">
+    Provide comprehensive order information for support queries
+  </Card>
+</CardGroup>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Order History" icon="clock-rotate-left" href="/api-reference/purchase-orders/order-history">
+    View list of all orders
+  </Card>
+  <Card title="Cancel Order" icon="x" href="/api-reference/purchase-orders/cancel-order">
+    Cancel an existing order
+  </Card>
+</CardGroup>

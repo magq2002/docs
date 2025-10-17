@@ -1,0 +1,267 @@
+---
+title: "Create Direct Redemption"
+api: "POST https://api.example.com/api/v2/collaborator/purchase-orders/direct-redemption"
+description: "Create an immediate product redemption order for a collaborator"
+---
+
+## Overview
+
+This endpoint allows collaborators to instantly redeem products using their available points. The system validates point balance, product availability, and delivery information before creating the order.
+
+<RequestExample>
+```bash cURL
+curl -X POST 'https://api.example.com/api/v2/collaborator/purchase-orders/direct-redemption' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN' \
+  -d '{
+    "product_id": "prod_12345",
+    "quantity": 2,
+    "delivery_address": {
+      "street": "Av. Reforma 123, Col. Centro",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "06000",
+      "country": "México"
+    }
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/direct-redemption', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiToken}`
+  },
+  body: JSON.stringify({
+    product_id: 'prod_12345',
+    quantity: 2,
+    delivery_address: {
+      street: 'Av. Reforma 123, Col. Centro',
+      city: 'Ciudad de México',
+      state: 'CDMX',
+      postal_code: '06000',
+      country: 'México'
+    }
+  })
+});
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/direct-redemption',
+  headers={
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {api_token}'
+  },
+  json={
+    'product_id': 'prod_12345',
+    'quantity': 2,
+    'delivery_address': {
+      'street': 'Av. Reforma 123, Col. Centro',
+      'city': 'Ciudad de México',
+      'state': 'CDMX',
+      'postal_code': '06000',
+      'country': 'México'
+    }
+  }
+)
+```
+</RequestExample>
+
+## Parameters
+
+<ParamField body="product_id" type="string" required>
+  Unique identifier of the product to redeem. Must be a valid product ID from the catalog.
+</ParamField>
+
+<ParamField body="quantity" type="integer" default="1">
+  Number of units to redeem. Must be a positive integer and not exceed available stock.
+</ParamField>
+
+<ParamField body="delivery_address" type="object" required>
+  Complete delivery address information for the order.
+  
+  <Expandable title="Address Properties">
+    <ParamField body="street" type="string" required>
+      Street address including number and neighborhood details
+    </ParamField>
+    
+    <ParamField body="city" type="string" required>
+      City name for delivery
+    </ParamField>
+    
+    <ParamField body="state" type="string" required>
+      State or province code (e.g., "CDMX", "JAL")
+    </ParamField>
+    
+    <ParamField body="postal_code" type="string" required>
+      Postal or ZIP code for the delivery location
+    </ParamField>
+    
+    <ParamField body="country" type="string" required>
+      Country name for international deliveries
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## System Validations
+
+<AccordionGroup>
+  <Accordion title="Point Balance Validation">
+    - Verifies collaborator has sufficient points for the redemption
+    - Calculates total cost: `product_price * quantity`
+    - Checks against available point balance
+  </Accordion>
+  
+  <Accordion title="Product Availability">
+    - Confirms product exists and is active in catalog
+    - Validates requested quantity against current stock
+    - Ensures product is available for collaborator's region
+  </Accordion>
+  
+  <Accordion title="Address Validation">
+    - Validates all required address fields are present
+    - Checks postal code format for the specified country
+    - Verifies delivery is available to the specified location
+  </Accordion>
+</AccordionGroup>
+
+## Response Examples
+
+<ResponseExample>
+```json Success (201 Created)
+{
+  "success": true,
+  "data": {
+    "order_id": "ord_67890",
+    "status": "confirmed",
+    "total_points": 1000,
+    "items": [
+      {
+        "product_id": "prod_12345",
+        "product_name": "Smartphone Samsung Galaxy",
+        "quantity": 2,
+        "unit_points": 500,
+        "total_points": 1000
+      }
+    ],
+    "delivery_address": {
+      "street": "Av. Reforma 123, Col. Centro",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "06000",
+      "country": "México"
+    },
+    "estimated_delivery": "2024-01-20T00:00:00Z",
+    "tracking_number": "TRK123456789",
+    "created_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+```json Insufficient Points (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "INSUFFICIENT_POINTS",
+    "message": "No tienes suficientes puntos para este producto",
+    "details": {
+      "required_points": 1000,
+      "available_points": 750,
+      "shortfall": 250
+    }
+  }
+}
+```
+
+```json Product Not Available (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "PRODUCT_UNAVAILABLE",
+    "message": "El producto no está disponible",
+    "details": {
+      "product_id": "prod_12345",
+      "reason": "out_of_stock",
+      "available_quantity": 0
+    }
+  }
+}
+```
+
+```json Invalid Address (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "INVALID_ADDRESS",
+    "message": "La dirección de entrega es inválida",
+    "details": {
+      "field": "postal_code",
+      "message": "Código postal inválido para México"
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="order_id" type="string">
+  Unique identifier for the created order
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current order status. Possible values: `confirmed`, `processing`, `shipped`, `delivered`
+</ResponseField>
+
+<ResponseField name="total_points" type="integer">
+  Total points deducted for this order
+</ResponseField>
+
+<ResponseField name="items" type="array">
+  Array of ordered items with details
+  
+  <Expandable title="Item Properties">
+    <ResponseField name="product_id" type="string">
+      Product identifier
+    </ResponseField>
+    
+    <ResponseField name="product_name" type="string">
+      Display name of the product
+    </ResponseField>
+    
+    <ResponseField name="quantity" type="integer">
+      Number of units ordered
+    </ResponseField>
+    
+    <ResponseField name="unit_points" type="integer">
+      Points cost per unit
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points for this item (unit_points × quantity)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="estimated_delivery" type="string">
+  ISO 8601 formatted estimated delivery date
+</ResponseField>
+
+<ResponseField name="tracking_number" type="string">
+  Shipping tracking number for order monitoring
+</ResponseField>
+
+## Best Practices
+
+<Tip>
+**Pre-validation**: Always check collaborator point balance and product availability before calling this endpoint to provide better user experience.
+</Tip>
+
+<Warning>
+**Idempotency**: This endpoint is not idempotent. Multiple calls with the same parameters will create multiple orders.
+</Warning>
+
+<Note>
+**Delivery Times**: Estimated delivery dates are calculated based on product location and delivery address. International deliveries may take 7-14 business days.
+</Note>

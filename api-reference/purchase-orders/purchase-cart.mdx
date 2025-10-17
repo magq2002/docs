@@ -1,0 +1,425 @@
+---
+title: "Purchase Shopping Cart"
+api: "POST https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/purchase"
+description: "Complete the purchase of all items in the collaborator's shopping cart"
+---
+
+## Overview
+
+This endpoint processes the purchase of all items currently in the collaborator's shopping cart. It validates point balance, product availability, and delivery information before creating the order and clearing the cart.
+
+<RequestExample>
+```bash cURL
+curl -X POST 'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/purchase' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN' \
+  -d '{
+    "delivery_address": {
+      "street": "Av. Reforma 123, Col. Centro",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "06000",
+      "country": "México"
+    }
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/shopping-cart/purchase', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiToken}`
+  },
+  body: JSON.stringify({
+    delivery_address: {
+      street: 'Av. Reforma 123, Col. Centro',
+      city: 'Ciudad de México',
+      state: 'CDMX',
+      postal_code: '06000',
+      country: 'México'
+    }
+  })
+});
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/purchase',
+  headers={
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {api_token}'
+  },
+  json={
+    'delivery_address': {
+      'street': 'Av. Reforma 123, Col. Centro',
+      'city': 'Ciudad de México',
+      'state': 'CDMX',
+      'postal_code': '06000',
+      'country': 'México'
+    }
+  }
+)
+```
+</RequestExample>
+
+## Parameters
+
+<ParamField body="delivery_address" type="object" required>
+  Complete delivery address information for the order.
+  
+  <Expandable title="Address Properties">
+    <ParamField body="street" type="string" required>
+      Street address including number and neighborhood details
+    </ParamField>
+    
+    <ParamField body="city" type="string" required>
+      City name for delivery
+    </ParamField>
+    
+    <ParamField body="state" type="string" required>
+      State or province code (e.g., "CDMX", "JAL")
+    </ParamField>
+    
+    <ParamField body="postal_code" type="string" required>
+      Postal or ZIP code for the delivery location
+    </ParamField>
+    
+    <ParamField body="country" type="string" required>
+      Country name for international deliveries
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Optional delivery notes or special instructions (max 500 characters)
+</ParamField>
+
+## Pre-Purchase Validations
+
+<AccordionGroup>
+  <Accordion title="Cart Validation">
+    - Verifies cart is not empty
+    - Confirms all items are still available
+    - Checks current stock levels for all products
+  </Accordion>
+  
+  <Accordion title="Point Balance Validation">
+    - Calculates total cart cost
+    - Verifies collaborator has sufficient points
+    - Reserves points during transaction processing
+  </Accordion>
+  
+  <Accordion title="Address Validation">
+    - Validates all required address fields
+    - Checks postal code format for specified country
+    - Confirms delivery availability to location
+  </Accordion>
+  
+  <Accordion title="Product Availability">
+    - Real-time stock verification for all cart items
+    - Validates products are still active in catalog
+    - Ensures regional availability for delivery address
+  </Accordion>
+</AccordionGroup>
+
+## Response Examples
+
+<ResponseExample>
+```json Success (201 Created)
+{
+  "success": true,
+  "data": {
+    "order_id": "ord_67890",
+    "status": "confirmed",
+    "total_points": 2300,
+    "items": [
+      {
+        "product_id": "prod_12345",
+        "product_name": "Smartphone Samsung Galaxy",
+        "quantity": 2,
+        "unit_points": 500,
+        "total_points": 1000
+      },
+      {
+        "product_id": "prod_67890",
+        "product_name": "Auriculares Bluetooth Sony",
+        "quantity": 1,
+        "unit_points": 300,
+        "total_points": 300
+      },
+      {
+        "product_id": "prod_11111",
+        "product_name": "Smartwatch Apple",
+        "quantity": 1,
+        "unit_points": 1000,
+        "total_points": 1000
+      }
+    ],
+    "delivery_address": {
+      "street": "Av. Reforma 123, Col. Centro",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "06000",
+      "country": "México"
+    },
+    "estimated_delivery": "2024-01-22T00:00:00Z",
+    "tracking_numbers": [
+      {
+        "product_id": "prod_12345",
+        "tracking_number": "TRK123456789"
+      },
+      {
+        "product_id": "prod_67890",
+        "tracking_number": "TRK123456790"
+      },
+      {
+        "product_id": "prod_11111",
+        "tracking_number": "TRK123456791"
+      }
+    ],
+    "collaborator_balance": {
+      "previous_points": 3000,
+      "deducted_points": 2300,
+      "remaining_points": 700
+    },
+    "created_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+```json Empty Cart (400 Bad Request)
+{
+  "error": {
+    "code": "EMPTY_CART",
+    "message": "El carrito está vacío",
+    "details": {
+      "cart_id": "cart_abc123"
+    }
+  }
+}
+```
+
+```json Insufficient Points (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "INSUFFICIENT_POINTS",
+    "message": "No tienes suficientes puntos para completar esta compra",
+    "details": {
+      "required_points": 2300,
+      "available_points": 1500,
+      "shortfall": 800
+    }
+  }
+}
+```
+
+```json Product Unavailable (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "PRODUCTS_UNAVAILABLE",
+    "message": "Algunos productos en tu carrito ya no están disponibles",
+    "details": {
+      "unavailable_items": [
+        {
+          "product_id": "prod_67890",
+          "product_name": "Auriculares Bluetooth Sony",
+          "reason": "out_of_stock",
+          "available_quantity": 0
+        }
+      ],
+      "available_items": [
+        {
+          "product_id": "prod_12345",
+          "product_name": "Smartphone Samsung Galaxy",
+          "available_quantity": 5
+        }
+      ]
+    }
+  }
+}
+```
+
+```json Invalid Address (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "INVALID_ADDRESS",
+    "message": "La dirección de entrega es inválida",
+    "details": {
+      "field": "postal_code",
+      "message": "Código postal inválido para México",
+      "provided_value": "invalid_code"
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="order_id" type="string">
+  Unique identifier for the created order
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current order status. Initial value is always `confirmed`
+</ResponseField>
+
+<ResponseField name="total_points" type="integer">
+  Total points deducted for this order
+</ResponseField>
+
+<ResponseField name="items" type="array">
+  Array of all purchased items with details
+  
+  <Expandable title="Item Properties">
+    <ResponseField name="product_id" type="string">
+      Product identifier
+    </ResponseField>
+    
+    <ResponseField name="product_name" type="string">
+      Display name of the product
+    </ResponseField>
+    
+    <ResponseField name="quantity" type="integer">
+      Number of units purchased
+    </ResponseField>
+    
+    <ResponseField name="unit_points" type="integer">
+      Points cost per unit
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points for this item (unit_points × quantity)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="delivery_address" type="object">
+  Complete delivery address as provided in the request
+</ResponseField>
+
+<ResponseField name="estimated_delivery" type="string">
+  ISO 8601 formatted estimated delivery date
+</ResponseField>
+
+<ResponseField name="tracking_numbers" type="array">
+  Array of tracking numbers for shipped items
+  
+  <Expandable title="Tracking Properties">
+    <ResponseField name="product_id" type="string">
+      Product identifier for this tracking number
+    </ResponseField>
+    
+    <ResponseField name="tracking_number" type="string">
+      Shipping tracking number for monitoring delivery
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="collaborator_balance" type="object">
+  Point balance information before and after purchase
+  
+  <Expandable title="Balance Properties">
+    <ResponseField name="previous_points" type="integer">
+      Point balance before this purchase
+    </ResponseField>
+    
+    <ResponseField name="deducted_points" type="integer">
+      Points deducted for this purchase
+    </ResponseField>
+    
+    <ResponseField name="remaining_points" type="integer">
+      Point balance after this purchase
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Transaction Process
+
+<Steps>
+  <Step title="Pre-validation">
+    System validates cart contents, point balance, and delivery address
+  </Step>
+  
+  <Step title="Point Reservation">
+    Required points are temporarily reserved to prevent double-spending
+  </Step>
+  
+  <Step title="Inventory Allocation">
+    Products are allocated from inventory and marked as reserved
+  </Step>
+  
+  <Step title="Order Creation">
+    Order record is created with confirmed status
+  </Step>
+  
+  <Step title="Point Deduction">
+    Points are permanently deducted from collaborator balance
+  </Step>
+  
+  <Step title="Cart Clearing">
+    Shopping cart is emptied after successful purchase
+  </Step>
+  
+  <Step title="Fulfillment Initiation">
+    Order is queued for processing and shipping
+  </Step>
+</Steps>
+
+## Post-Purchase Behavior
+
+<Note>
+**Cart State**: After successful purchase, the shopping cart is automatically cleared and ready for new items.
+</Note>
+
+<Tip>
+**Order Tracking**: Use the returned `order_id` to track order status and the `tracking_numbers` for shipment monitoring.
+</Tip>
+
+<Warning>
+**Transaction Atomicity**: If any part of the purchase process fails, all changes are rolled back and no points are deducted.
+</Warning>
+
+## Error Recovery
+
+When purchase fails due to product availability:
+
+1. **Review Error Details**: Check which specific products are unavailable
+2. **Update Cart**: Remove unavailable items or reduce quantities
+3. **Retry Purchase**: Attempt purchase again with updated cart
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Pre-Purchase Validation">
+    - Always get fresh cart contents before purchase
+    - Validate collaborator point balance
+    - Confirm delivery address format
+  </Accordion>
+  
+  <Accordion title="Error Handling">
+    - Handle partial availability gracefully
+    - Provide clear error messages to users
+    - Offer alternatives when products become unavailable
+  </Accordion>
+  
+  <Accordion title="User Experience">
+    - Show order confirmation immediately
+    - Provide tracking information
+    - Send confirmation emails/notifications
+  </Accordion>
+</AccordionGroup>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Get Shopping Cart" icon="shopping-cart" href="/api-reference/purchase-orders/get-shopping-cart">
+    Review cart contents before purchase
+  </Card>
+  <Card title="Order History" icon="clock-rotate-left" href="/api-reference/purchase-orders/order-history">
+    View completed orders and status
+  </Card>
+</CardGroup>

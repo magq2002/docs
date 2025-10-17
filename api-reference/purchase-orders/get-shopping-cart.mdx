@@ -1,0 +1,335 @@
+---
+title: "Get Shopping Cart"
+api: "GET https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart"
+description: "Retrieve current shopping cart contents for the authenticated collaborator"
+---
+
+## Overview
+
+This endpoint returns the current contents of the collaborator's shopping cart, including all added products, quantities, point calculations, and cart totals.
+
+<RequestExample>
+```bash cURL
+curl -X GET 'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/shopping-cart', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${apiToken}`
+  }
+});
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart',
+  headers={
+    'Authorization': f'Bearer {api_token}'
+  }
+)
+```
+</RequestExample>
+
+## Parameters
+
+This endpoint does not require any parameters. The shopping cart is automatically associated with the authenticated collaborator.
+
+## Response Examples
+
+<ResponseExample>
+```json Success - Cart with Items (200 OK)
+{
+  "success": true,
+  "data": {
+    "cart_id": "cart_abc123",
+    "items": [
+      {
+        "cart_item_id": "item_001",
+        "product_id": "prod_12345",
+        "product_name": "Smartphone Samsung Galaxy",
+        "product_image": "https://cdn.example.com/products/samsung-galaxy.jpg",
+        "quantity": 2,
+        "unit_points": 500,
+        "total_points": 1000,
+        "availability": {
+          "in_stock": true,
+          "available_quantity": 15
+        },
+        "added_at": "2024-01-15T09:30:00Z"
+      },
+      {
+        "cart_item_id": "item_002",
+        "product_id": "prod_67890",
+        "product_name": "Auriculares Bluetooth Sony",
+        "product_image": "https://cdn.example.com/products/sony-headphones.jpg",
+        "quantity": 1,
+        "unit_points": 300,
+        "total_points": 300,
+        "availability": {
+          "in_stock": true,
+          "available_quantity": 8
+        },
+        "added_at": "2024-01-15T10:15:00Z"
+      }
+    ],
+    "summary": {
+      "total_items": 2,
+      "total_quantity": 3,
+      "total_points": 1300,
+      "estimated_delivery": "2024-01-22T00:00:00Z"
+    },
+    "collaborator_balance": {
+      "available_points": 2500,
+      "sufficient_balance": true
+    },
+    "updated_at": "2024-01-15T10:15:00Z"
+  }
+}
+```
+
+```json Success - Empty Cart (200 OK)
+{
+  "success": true,
+  "data": {
+    "cart_id": "cart_abc123",
+    "items": [],
+    "summary": {
+      "total_items": 0,
+      "total_quantity": 0,
+      "total_points": 0,
+      "estimated_delivery": null
+    },
+    "collaborator_balance": {
+      "available_points": 2500,
+      "sufficient_balance": true
+    },
+    "updated_at": "2024-01-15T08:00:00Z"
+  }
+}
+```
+
+```json Cart with Unavailable Items (200 OK)
+{
+  "success": true,
+  "data": {
+    "cart_id": "cart_abc123",
+    "items": [
+      {
+        "cart_item_id": "item_003",
+        "product_id": "prod_99999",
+        "product_name": "Tablet iPad Pro",
+        "product_image": "https://cdn.example.com/products/ipad-pro.jpg",
+        "quantity": 1,
+        "unit_points": 1200,
+        "total_points": 1200,
+        "availability": {
+          "in_stock": false,
+          "available_quantity": 0,
+          "reason": "out_of_stock"
+        },
+        "added_at": "2024-01-14T15:30:00Z"
+      }
+    ],
+    "summary": {
+      "total_items": 1,
+      "total_quantity": 1,
+      "total_points": 1200,
+      "estimated_delivery": null
+    },
+    "collaborator_balance": {
+      "available_points": 2500,
+      "sufficient_balance": true
+    },
+    "warnings": [
+      {
+        "type": "product_unavailable",
+        "message": "Algunos productos en tu carrito no están disponibles",
+        "affected_items": ["item_003"]
+      }
+    ],
+    "updated_at": "2024-01-15T10:15:00Z"
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="cart_id" type="string">
+  Unique identifier for the shopping cart session
+</ResponseField>
+
+<ResponseField name="items" type="array">
+  Array of products currently in the shopping cart
+  
+  <Expandable title="Cart Item Properties">
+    <ResponseField name="cart_item_id" type="string">
+      Unique identifier for this specific cart item
+    </ResponseField>
+    
+    <ResponseField name="product_id" type="string">
+      Product identifier from the catalog
+    </ResponseField>
+    
+    <ResponseField name="product_name" type="string">
+      Display name of the product
+    </ResponseField>
+    
+    <ResponseField name="product_image" type="string">
+      URL to the product's main image
+    </ResponseField>
+    
+    <ResponseField name="quantity" type="integer">
+      Number of units in cart for this product
+    </ResponseField>
+    
+    <ResponseField name="unit_points" type="integer">
+      Points cost per individual unit
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points for this cart item (unit_points × quantity)
+    </ResponseField>
+    
+    <ResponseField name="availability" type="object">
+      Current availability status for this product
+      
+      <Expandable title="Availability Properties">
+        <ResponseField name="in_stock" type="boolean">
+          Whether the product is currently available
+        </ResponseField>
+        
+        <ResponseField name="available_quantity" type="integer">
+          Number of units available in inventory
+        </ResponseField>
+        
+        <ResponseField name="reason" type="string">
+          Reason for unavailability (if applicable): `out_of_stock`, `discontinued`, `region_restricted`
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="added_at" type="string">
+      ISO 8601 timestamp when item was added to cart
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="summary" type="object">
+  Cart totals and summary information
+  
+  <Expandable title="Summary Properties">
+    <ResponseField name="total_items" type="integer">
+      Number of different products in cart
+    </ResponseField>
+    
+    <ResponseField name="total_quantity" type="integer">
+      Total number of individual units across all products
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points required for all items in cart
+    </ResponseField>
+    
+    <ResponseField name="estimated_delivery" type="string | null">
+      ISO 8601 estimated delivery date, null if cart is empty or has unavailable items
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="collaborator_balance" type="object">
+  Collaborator's current point balance and purchase capability
+  
+  <Expandable title="Balance Properties">
+    <ResponseField name="available_points" type="integer">
+      Current available points for the collaborator
+    </ResponseField>
+    
+    <ResponseField name="sufficient_balance" type="boolean">
+      Whether collaborator has enough points for current cart total
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="warnings" type="array">
+  Array of warnings about cart contents (optional)
+  
+  <Expandable title="Warning Properties">
+    <ResponseField name="type" type="string">
+      Warning type: `product_unavailable`, `insufficient_stock`, `price_changed`
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Human-readable warning message
+    </ResponseField>
+    
+    <ResponseField name="affected_items" type="array">
+      Array of cart_item_ids affected by this warning
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="updated_at" type="string">
+  ISO 8601 timestamp of last cart modification
+</ResponseField>
+
+## Cart States
+
+<AccordionGroup>
+  <Accordion title="Empty Cart">
+    When no items have been added to the cart:
+    - `items` array is empty
+    - `total_points` is 0
+    - `estimated_delivery` is null
+  </Accordion>
+  
+  <Accordion title="Active Cart">
+    Cart with available products:
+    - All items show `in_stock: true`
+    - `sufficient_balance` indicates if purchase is possible
+    - `estimated_delivery` shows expected delivery date
+  </Accordion>
+  
+  <Accordion title="Cart with Issues">
+    Cart containing unavailable products or other issues:
+    - Items may show `in_stock: false`
+    - `warnings` array contains relevant alerts
+    - `estimated_delivery` may be null
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+**Real-time Updates**: Cart contents and availability are checked in real-time. Product availability can change between cart views.
+</Tip>
+
+<Note>
+**Automatic Cleanup**: Items that become permanently unavailable are automatically removed from carts after 7 days.
+</Note>
+
+<Warning>
+**Session Management**: Shopping carts are persistent but may expire after 30 days of inactivity.
+</Warning>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Cart Review" icon="eye">
+    Display current cart contents before checkout
+  </Card>
+  <Card title="Availability Check" icon="check-circle">
+    Verify all items are still available before purchase
+  </Card>
+  <Card title="Point Calculation" icon="calculator">
+    Show total points required and remaining balance
+  </Card>
+  <Card title="Cart Validation" icon="shield-check">
+    Identify any issues preventing successful checkout
+  </Card>
+</CardGroup>

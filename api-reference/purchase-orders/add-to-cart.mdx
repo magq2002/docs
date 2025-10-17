@@ -1,0 +1,271 @@
+---
+title: "Add to Shopping Cart"
+api: "POST https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/add"
+description: "Add a product to the collaborator's shopping cart"
+---
+
+## Overview
+
+This endpoint allows collaborators to add products to their shopping cart for later purchase. The system validates product availability and updates cart totals automatically.
+
+<RequestExample>
+```bash cURL
+curl -X POST 'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/add' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN' \
+  -d '{
+    "product_id": "prod_12345",
+    "quantity": 2
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/shopping-cart/add', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiToken}`
+  },
+  body: JSON.stringify({
+    product_id: 'prod_12345',
+    quantity: 2
+  })
+});
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/add',
+  headers={
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {api_token}'
+  },
+  json={
+    'product_id': 'prod_12345',
+    'quantity': 2
+  }
+)
+```
+</RequestExample>
+
+## Parameters
+
+<ParamField body="product_id" type="string" required>
+  Unique identifier of the product to add to cart. Must be a valid product ID from the catalog.
+</ParamField>
+
+<ParamField body="quantity" type="integer" default="1">
+  Number of units to add to cart. Must be a positive integer. If the product already exists in cart, this quantity will be added to the existing amount.
+</ParamField>
+
+## Response Examples
+
+<ResponseExample>
+```json Success - New Item Added (201 Created)
+{
+  "success": true,
+  "data": {
+    "cart_item_id": "item_001",
+    "product_id": "prod_12345",
+    "product_name": "Smartphone Samsung Galaxy",
+    "quantity": 2,
+    "unit_points": 500,
+    "total_points": 1000,
+    "cart_summary": {
+      "total_items": 3,
+      "total_quantity": 5,
+      "total_points": 2300
+    }
+  },
+  "message": "Producto agregado al carrito exitosamente"
+}
+```
+
+```json Success - Quantity Updated (200 OK)
+{
+  "success": true,
+  "data": {
+    "cart_item_id": "item_001",
+    "product_id": "prod_12345",
+    "product_name": "Smartphone Samsung Galaxy",
+    "quantity": 4,
+    "unit_points": 500,
+    "total_points": 2000,
+    "cart_summary": {
+      "total_items": 3,
+      "total_quantity": 7,
+      "total_points": 3300
+    }
+  },
+  "message": "Cantidad actualizada en el carrito"
+}
+```
+
+```json Product Not Found (404 Not Found)
+{
+  "error": {
+    "code": "PRODUCT_NOT_FOUND",
+    "message": "El producto especificado no existe",
+    "details": {
+      "product_id": "prod_invalid"
+    }
+  }
+}
+```
+
+```json Insufficient Stock (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "INSUFFICIENT_STOCK",
+    "message": "No hay suficiente inventario disponible",
+    "details": {
+      "product_id": "prod_12345",
+      "requested_quantity": 10,
+      "available_quantity": 3,
+      "current_cart_quantity": 2
+    }
+  }
+}
+```
+
+```json Product Unavailable (422 Unprocessable Entity)
+{
+  "error": {
+    "code": "PRODUCT_UNAVAILABLE",
+    "message": "El producto no está disponible para compra",
+    "details": {
+      "product_id": "prod_12345",
+      "reason": "discontinued",
+      "alternative_products": ["prod_12346", "prod_12347"]
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="cart_item_id" type="string">
+  Unique identifier for this specific cart item entry
+</ResponseField>
+
+<ResponseField name="product_id" type="string">
+  Product identifier that was added to cart
+</ResponseField>
+
+<ResponseField name="product_name" type="string">
+  Display name of the product
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+  Total quantity of this product now in cart (including previously added units)
+</ResponseField>
+
+<ResponseField name="unit_points" type="integer">
+  Points cost per individual unit
+</ResponseField>
+
+<ResponseField name="total_points" type="integer">
+  Total points for this product in cart (unit_points × quantity)
+</ResponseField>
+
+<ResponseField name="cart_summary" type="object">
+  Updated cart totals after adding the item
+  
+  <Expandable title="Cart Summary Properties">
+    <ResponseField name="total_items" type="integer">
+      Number of different products in cart
+    </ResponseField>
+    
+    <ResponseField name="total_quantity" type="integer">
+      Total number of individual units across all products
+    </ResponseField>
+    
+    <ResponseField name="total_points" type="integer">
+      Total points required for all items in cart
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## System Behavior
+
+<AccordionGroup>
+  <Accordion title="New Product Addition">
+    When adding a product not currently in cart:
+    - Creates new cart item entry
+    - Returns HTTP 201 Created
+    - Assigns unique `cart_item_id`
+  </Accordion>
+  
+  <Accordion title="Existing Product Update">
+    When adding a product already in cart:
+    - Updates existing cart item quantity
+    - Returns HTTP 200 OK
+    - Maintains same `cart_item_id`
+  </Accordion>
+  
+  <Accordion title="Stock Validation">
+    System checks available inventory:
+    - Validates against current stock levels
+    - Considers items already in cart
+    - Prevents over-allocation of limited products
+  </Accordion>
+</AccordionGroup>
+
+## Validation Rules
+
+<Warning>
+**Stock Limits**: The system enforces inventory limits. If requesting more units than available, the request will be rejected with details about available quantity.
+</Warning>
+
+<Note>
+**Quantity Accumulation**: When adding products already in cart, quantities are cumulative. Adding 2 units to an existing 3 units results in 5 total units.
+</Note>
+
+<Tip>
+**Batch Operations**: To add multiple different products, make separate API calls for each product. This ensures proper validation and error handling per item.
+</Tip>
+
+## Best Practices
+
+<Steps>
+  <Step title="Validate Product Availability">
+    Check product catalog and stock levels before attempting to add items
+  </Step>
+  
+  <Step title="Handle Quantity Limits">
+    Implement client-side validation for reasonable quantity limits
+  </Step>
+  
+  <Step title="Provide User Feedback">
+    Show clear success/error messages based on API response
+  </Step>
+  
+  <Step title="Update Cart Display">
+    Refresh cart totals and item counts after successful additions
+  </Step>
+</Steps>
+
+## Error Handling
+
+Common error scenarios and recommended handling:
+
+| Error Code | Recommended Action |
+|------------|-------------------|
+| `PRODUCT_NOT_FOUND` | Remove product from UI or show "no longer available" |
+| `INSUFFICIENT_STOCK` | Show available quantity and allow user to adjust |
+| `PRODUCT_UNAVAILABLE` | Display alternative products if provided |
+| `INVALID_QUANTITY` | Validate quantity input on client side |
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Get Shopping Cart" icon="shopping-cart" href="/api-reference/purchase-orders/get-shopping-cart">
+    View current cart contents and totals
+  </Card>
+  <Card title="Remove from Cart" icon="trash" href="/api-reference/purchase-orders/remove-from-cart">
+    Remove items from shopping cart
+  </Card>
+</CardGroup>

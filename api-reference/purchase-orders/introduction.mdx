@@ -1,0 +1,95 @@
+---
+title: "Purchase Orders API"
+description: "Complete API reference for collaborator redemption system"
+---
+
+## Overview
+
+The Purchase Orders API enables collaborators to redeem products through two main methods:
+- **Direct Redemption**: Immediate product redemption with instant order creation
+- **Shopping Cart Redemption**: Add products to cart and purchase multiple items together
+
+## Base URL
+
+```
+https://api.example.com/api/v2/collaborator/purchase-orders
+```
+
+## Authentication
+
+All endpoints require Bearer token authentication:
+
+```bash
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+<Warning>
+API tokens are sensitive credentials. Never expose them in client-side code or commit them to version control.
+</Warning>
+
+## Common Response Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| `200` | Success |
+| `201` | Created successfully |
+| `400` | Bad request - Invalid parameters |
+| `401` | Unauthorized - Invalid or missing token |
+| `403` | Forbidden - Insufficient permissions |
+| `422` | Validation error - Check request payload |
+| `500` | Internal server error |
+
+## Rate Limiting
+
+- **Rate Limit**: 100 requests per minute per API token
+- **Burst Limit**: 10 requests per second
+
+Rate limit headers are included in all responses:
+- `X-RateLimit-Limit`: Total requests allowed per window
+- `X-RateLimit-Remaining`: Requests remaining in current window
+- `X-RateLimit-Reset`: Time when the rate limit resets (Unix timestamp)
+
+## Error Handling
+
+All error responses follow this structure:
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_POINTS",
+    "message": "No tienes suficientes puntos para este producto",
+    "details": {
+      "required_points": 500,
+      "available_points": 250
+    }
+  }
+}
+```
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="Direct Redemption" icon="zap" href="/api-reference/purchase-orders/create-direct-redemption">
+    Redeem products instantly with a single API call
+  </Card>
+  <Card title="Shopping Cart" icon="shopping-cart" href="/api-reference/purchase-orders/get-shopping-cart">
+    Manage cart items and process bulk redemptions
+  </Card>
+</CardGroup>
+
+## Workflow Recommendations
+
+<Steps>
+  <Step title="Authenticate">
+    Obtain and validate your API token for secure access
+  </Step>
+  <Step title="Check Product Availability">
+    Verify product stock and collaborator points before redemption
+  </Step>
+  <Step title="Choose Redemption Method">
+    Use direct redemption for single items or shopping cart for multiple products
+  </Step>
+  <Step title="Process Order">
+    Complete the redemption and handle success/error responses appropriately
+  </Step>
+</Steps>

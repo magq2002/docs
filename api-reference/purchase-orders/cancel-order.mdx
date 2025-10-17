@@ -1,0 +1,387 @@
+---
+title: "Cancel Order"
+api: "DELETE https://api.example.com/api/v2/collaborator/purchase-orders/{order_id}/cancel"
+description: "Cancel an existing purchase order and refund points"
+---
+
+## Overview
+
+This endpoint allows collaborators to cancel their purchase orders within the allowed timeframe. When an order is successfully cancelled, all points are refunded to the collaborator's account.
+
+<Warning>
+Orders can only be cancelled within 2 hours of placement or before the status changes to "processing".
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE 'https://api.example.com/api/v2/collaborator/purchase-orders/ord_67890/cancel' \
+  -H 'Authorization: Bearer YOUR_API_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "cancellation_reason": "changed_mind",
+    "notes": "Decidí esperar para hacer la compra más adelante"
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('/api/v2/collaborator/purchase-orders/ord_67890/cancel', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${apiToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    cancellation_reason: 'changed_mind',
+    notes: 'Decidí esperar para hacer la compra más adelante'
+  })
+});
+```
+
+```python Python
+import requests
+
+response = requests.delete(
+  'https://api.example.com/api/v2/collaborator/purchase-orders/ord_67890/cancel',
+  headers={
+    'Authorization': f'Bearer {api_token}',
+    'Content-Type': 'application/json'
+  },
+  json={
+    'cancellation_reason': 'changed_mind',
+    'notes': 'Decidí esperar para hacer la compra más adelante'
+  }
+)
+```
+</RequestExample>
+
+## Parameters
+
+<ParamField path="order_id" type="string" required>
+  Unique identifier of the order to cancel. Must be a valid order ID belonging to the authenticated collaborator.
+</ParamField>
+
+<ParamField body="cancellation_reason" type="string" required>
+  Reason for cancellation. Valid values: `changed_mind`, `found_better_price`, `no_longer_needed`, `delivery_concerns`, `product_concerns`, `other`
+</ParamField>
+
+<ParamField body="notes" type="string">
+  Optional additional notes explaining the cancellation reason. Maximum 500 characters.
+</ParamField>
+
+## Cancellation Reasons
+
+| Reason Code | Description | Common Use Case |
+|-------------|-------------|-----------------|
+| `changed_mind` | Changed mind about the purchase | General cancellation |
+| `found_better_price` | Found better pricing elsewhere | Price comparison |
+| `no_longer_needed` | No longer need the product | Changed requirements |
+| `delivery_concerns` | Concerns about delivery timing | Urgent delivery needs |
+| `product_concerns` | Concerns about product specifications | Product research |
+| `other` | Other reason (specify in notes) | Custom reasons |
+
+## Response Examples
+
+<ResponseExample>
+```json Success - Order Cancelled (200 OK)
+{
+  "success": true,
+  "data": {
+    "order_id": "ord_67890",
+    "status": "cancelled",
+    "cancellation_info": {
+      "cancelled_at": "2024-01-15T11:45:00Z",
+      "cancellation_reason": "changed_mind",
+      "notes": "Decidí esperar para hacer la compra más adelante",
+      "cancelled_by": "collaborator"
+    },
+    "refund_info": {
+      "points_refunded": 2300,
+      "refund_transaction_id": "ref_abc123def456",
+      "refund_processed_at": "2024-01-15T11:45:15Z",
+      "new_balance": 3800
+    },
+    "original_order": {
+      "total_points": 2300,
+      "items_count": 3,
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    "cancellation_deadline_was": "2024-01-15T12:30:00Z"
+  }
+}
+```
+
+```json Order Cannot Be Cancelled - Too Late (400 Bad Request)
+{
+  "error": {
+    "code": "CANCELLATION_NOT_ALLOWED",
+    "message": "Esta orden ya no puede ser cancelada",
+    "details": {
+      "order_id": "ord_67890",
+      "current_status": "processing",
+      "cancellation_deadline": "2024-01-15T12:30:00Z",
+      "current_time": "2024-01-15T14:00:00Z",
+      "reason": "cancellation_deadline_passed"
+    }
+  }
+}
+```
+
+```json Order Cannot Be Cancelled - Already Shipped (400 Bad Request)
+{
+  "error": {
+    "code": "CANCELLATION_NOT_ALLOWED",
+    "message": "Esta orden ya ha sido enviada y no puede ser cancelada",
+    "details": {
+      "order_id": "ord_67890",
+      "current_status": "shipped",
+      "shipped_at": "2024-01-16T09:15:00Z",
+      "tracking_number": "TRK123456789",
+      "reason": "order_already_shipped"
+    }
+  }
+}
+```
+
+```json Order Not Found (404 Not Found)
+{
+  "error": {
+    "code": "ORDER_NOT_FOUND",
+    "message": "La orden especificada no existe o no pertenece a este colaborador",
+    "details": {
+      "order_id": "ord_invalid"
+    }
+  }
+}
+```
+
+```json Invalid Cancellation Reason (400 Bad Request)
+{
+  "error": {
+    "code": "INVALID_CANCELLATION_REASON",
+    "message": "El motivo de cancelación proporcionado no es válido",
+    "details": {
+      "provided_reason": "invalid_reason",
+      "valid_reasons": [
+        "changed_mind",
+        "found_better_price", 
+        "no_longer_needed",
+        "delivery_concerns",
+        "product_concerns",
+        "other"
+      ]
+    }
+  }
+}
+```
+
+```json Order Already Cancelled (400 Bad Request)
+{
+  "error": {
+    "code": "ORDER_ALREADY_CANCELLED",
+    "message": "Esta orden ya ha sido cancelada previamente",
+    "details": {
+      "order_id": "ord_67890",
+      "cancelled_at": "2024-01-15T11:30:00Z",
+      "cancellation_reason": "changed_mind"
+    }
+  }
+}
+```
+</ResponseExample>
+
+## Response Fields
+
+<ResponseField name="order_id" type="string">
+  Unique identifier of the cancelled order
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  New order status, will be "cancelled"
+</ResponseField>
+
+<ResponseField name="cancellation_info" type="object">
+  Details about the cancellation
+  
+  <Expandable title="Cancellation Properties">
+    <ResponseField name="cancelled_at" type="string">
+      ISO 8601 timestamp when the order was cancelled
+    </ResponseField>
+    
+    <ResponseField name="cancellation_reason" type="string">
+      Reason code for the cancellation
+    </ResponseField>
+    
+    <ResponseField name="notes" type="string">
+      Additional notes provided for cancellation
+    </ResponseField>
+    
+    <ResponseField name="cancelled_by" type="string">
+      Who cancelled the order: "collaborator" or "system"
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="refund_info" type="object">
+  Information about the points refund
+  
+  <Expandable title="Refund Properties">
+    <ResponseField name="points_refunded" type="integer">
+      Total points refunded to the collaborator's account
+    </ResponseField>
+    
+    <ResponseField name="refund_transaction_id" type="string">
+      Unique identifier for the refund transaction
+    </ResponseField>
+    
+    <ResponseField name="refund_processed_at" type="string">
+      ISO 8601 timestamp when the refund was processed
+    </ResponseField>
+    
+    <ResponseField name="new_balance" type="integer">
+      Collaborator's new point balance after refund
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="original_order" type="object">
+  Summary of the original order details
+  
+  <Expandable title="Original Order Properties">
+    <ResponseField name="total_points" type="integer">
+      Total points that were spent on the original order
+    </ResponseField>
+    
+    <ResponseField name="items_count" type="integer">
+      Number of different products in the order
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp when the order was originally created
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="cancellation_deadline_was" type="string">
+  ISO 8601 timestamp of when the cancellation deadline was/is
+</ResponseField>
+
+## Cancellation Rules
+
+<AccordionGroup>
+  <Accordion title="Time Limits">
+    **Standard Cancellation Window**: 2 hours from order placement
+    
+    **Status-Based Rules**:
+    - ✅ `confirmed`: Can be cancelled
+    - ❌ `processing`: Cannot be cancelled
+    - ❌ `shipped`: Cannot be cancelled
+    - ❌ `delivered`: Cannot be cancelled
+  </Accordion>
+  
+  <Accordion title="Refund Process">
+    **Immediate Refund**: Points are refunded instantly upon successful cancellation
+    
+    **Full Refund**: 100% of points are returned to the collaborator's account
+    
+    **Transaction Record**: All cancellations and refunds are tracked with unique transaction IDs
+  </Accordion>
+  
+  <Accordion title="System Cancellations">
+    The system may automatically cancel orders in these cases:
+    - Product becomes unavailable after order placement
+    - Payment processing fails
+    - Delivery address validation fails
+    - Inventory shortage discovered during processing
+  </Accordion>
+</AccordionGroup>
+
+## Cancellation Workflow
+
+<Steps>
+  <Step title="Check Cancellation Eligibility">
+    Verify that the order can still be cancelled by checking its status and timestamp.
+    
+    <Check>
+    Order status is "confirmed" and within 2-hour window
+    </Check>
+  </Step>
+  
+  <Step title="Submit Cancellation Request">
+    Send the cancellation request with appropriate reason and optional notes.
+    
+    <Tip>
+    Providing detailed notes helps improve our service and product offerings.
+    </Tip>
+  </Step>
+  
+  <Step title="Process Refund">
+    Points are immediately refunded to the collaborator's account upon successful cancellation.
+    
+    <Check>
+    Verify new balance reflects the refunded points
+    </Check>
+  </Step>
+  
+  <Step title="Update Order Status">
+    Order status is permanently changed to "cancelled" and cannot be reversed.
+    
+    <Note>
+    Cancelled orders remain in order history for record-keeping purposes.
+    </Note>
+  </Step>
+</Steps>
+
+## Error Handling
+
+| Error Code | HTTP Status | Description | Resolution |
+|------------|-------------|-------------|------------|
+| `CANCELLATION_NOT_ALLOWED` | 400 | Order cannot be cancelled | Check order status and timing |
+| `ORDER_NOT_FOUND` | 404 | Order doesn't exist | Verify order ID |
+| `ORDER_ALREADY_CANCELLED` | 400 | Order was already cancelled | Check order history |
+| `INVALID_CANCELLATION_REASON` | 400 | Invalid reason code | Use valid reason codes |
+| `AUTHORIZATION_REQUIRED` | 401 | Missing or invalid token | Provide valid API token |
+| `ORDER_ACCESS_DENIED` | 403 | Order belongs to different user | Verify order ownership |
+
+## Best Practices
+
+<Tip>
+**Check Eligibility First**: Always verify cancellation eligibility by checking order details before attempting cancellation.
+</Tip>
+
+<Note>
+**Provide Clear Reasons**: Use appropriate cancellation reason codes to help improve the service.
+</Note>
+
+<Warning>
+**Immediate Effect**: Cancellations are processed immediately and cannot be undone. Ensure the collaborator confirms their intent.
+</Warning>
+
+## Alternative Actions
+
+If an order cannot be cancelled, consider these alternatives:
+
+<CardGroup cols={2}>
+  <Card title="Modify Delivery Address" icon="map-pin" href="/api-reference/purchase-orders/modify-order">
+    Change delivery address if order hasn't shipped
+  </Card>
+  <Card title="Contact Support" icon="headset" href="/api-reference/support/create-ticket">
+    Get help with special cancellation requests
+  </Card>
+  <Card title="Return After Delivery" icon="undo" href="/api-reference/purchase-orders/return-order">
+    Process return after order is delivered
+  </Card>
+  <Card title="Track Order" icon="truck" href="/api-reference/purchase-orders/order-details">
+    Monitor order progress and delivery
+  </Card>
+</CardGroup>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Order Details" icon="file-text" href="/api-reference/purchase-orders/order-details">
+    Get detailed order information
+  </Card>
+  <Card title="Order History" icon="clock-rotate-left" href="/api-reference/purchase-orders/order-history">
+    View all orders including cancelled ones
+  </Card>
+</CardGroup>
