@@ -1,543 +1,850 @@
 ---
-title: "Purchase Orders Module API Documentation"
-description: "Comprehensive API documentation for the Purchase Orders Module including direct redemption and shopping cart redemption for collaborators"
+title: "Purchase Orders API Reference"
+description: "Complete API reference for collaborator redemption system including direct redemptions and shopping cart functionality"
 ---
 
-# Purchase Orders Module API
+# Purchase Orders API Reference
 
-El módulo de Purchase Orders (Órdenes de Compra) permite a los colaboradores realizar canjes de productos utilizando sus puntos acumulados. El sistema soporta dos tipos principales de canje:
+This API handles the redemption system for collaborators, allowing them to redeem products through direct redemptions and shopping cart functionality.
 
-1. **Canje Directo** - Redención inmediata de un producto específico
-2. **Canje de Carrito de Compras** - Redención de múltiples productos agregados al carrito
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+Bearer token for API authentication. Format: `Bearer YOUR_JWT_TOKEN`
+</ParamField>
 
 ## Base URL
 
 ```
-https://your-domain.com/api/v2/collaborator/purchase-orders
+https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders
 ```
-
-## Authentication
-
-Todos los endpoints requieren autenticación Bearer token:
-
-```bash
-Authorization: Bearer YOUR_API_TOKEN
-```
-
-<Warning>
-Asegúrese de que su token API tenga los permisos apropiados para el módulo de Purchase Orders antes de realizar solicitudes.
-</Warning>
 
 ---
 
-# Canje Directo
+## Create Direct Redemption
 
-## Crear Orden de Compra Individual
+`POST https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/create`
 
-Permite a un colaborador canjear un producto específico directamente utilizando sus puntos acumulados.
+Creates a direct redemption order for a collaborator without using shopping cart.
 
-<RequestExample>
-```bash cURL
-curl -X POST '/api/v2/collaborator/purchase-orders/create' \
-  -H 'Authorization: Bearer YOUR_TOKEN' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "product_id": 12345
-  }'
-```
-</RequestExample>
+### Request Body
 
 <ParamField body="product_id" type="integer" required>
-ID único del producto que se desea canjear. Debe ser un producto válido y disponible en el catálogo de incentivos.
+Unique identifier of the product to redeem
 </ParamField>
 
-### Validaciones del Sistema
+<ParamField body="quantity" type="integer" required>
+Number of units to redeem (must be positive)
+</ParamField>
 
-<Info>
-El sistema realiza las siguientes validaciones antes de procesar el canje:
-- Verificación de autenticación del usuario
-- Validación de existencia del producto
-- Verificación de puntos suficientes
-- Confirmación de dirección de entrega registrada
-- Validación de disponibilidad del producto
-</Info>
+<ParamField body="delivery_address" type="object" required>
+Complete delivery address information
 
-<ResponseExample>
-```json Success
-{
-  "success": true,
-  "available": 2500,
-  "order": {
-    "id": "ORD-2024-001234",
-    "product": {
-      "id": 12345,
-      "name": "Smartphone Samsung Galaxy A54",
-      "part_number": "SAM-A54-128GB",
-      "points_value": 1500,
-      "category": "Electrónicos",
-      "vendor": "Samsung"
-    },
-    "status": "PENDING",
-    "created_at": "2024-01-15T10:30:00Z",
-    "delivery_address": "Calle Principal 123, Col. Centro, CP 12345, Ciudad de México"
-  }
-}
-```
-</ResponseExample>
+<Expandable title="Address Properties">
+<ParamField body="street" type="string" required>
+Street address including number
+</ParamField>
 
-<ResponseExample>
-```json Error - Insufficient Points
-{
-  "success": false,
-  "error": "ForbiddenException",
-  "message": "No dispone de saldo suficientes para realizar la redención",
-  "details": {
-    "required_points": 1500,
-    "available_points": 800,
-    "deficit": 700
-  }
-}
-```
-</ResponseExample>
+<ParamField body="city" type="string" required>
+City name
+</ParamField>
 
-<ResponseExample>
-```json Error - Missing Address
-{
-  "success": false,
-  "error": "ForbiddenException",
-  "message": "Aún no registra una dirección de entrega. El canje no puede ser procesado.",
-  "action_required": "register_delivery_address"
-}
-```
-</ResponseExample>
+<ParamField body="state" type="string" required>
+State or province
+</ParamField>
 
-<Warning>
-El canje directo es una transacción irreversible. Una vez procesada la orden, los puntos son deducidos inmediatamente del saldo del colaborador.
-</Warning>
+<ParamField body="postal_code" type="string" required>
+Postal or ZIP code
+</ParamField>
 
----
+<ParamField body="country" type="string" required>
+Country name
+</ParamField>
+</Expandable>
+</ParamField>
 
-# Canje de Carrito de Compras
-
-## Procesar Carrito de Compras
-
-Permite canjear todos los productos agregados al carrito de compras del colaborador en una sola transacción.
+<ParamField body="special_instructions" type="string">
+Optional delivery instructions or notes
+</ParamField>
 
 <RequestExample>
 ```bash cURL
-curl -X POST '/api/v2/collaborator/purchase-orders/purchase-shopping-cart' \
-  -H 'Authorization: Bearer YOUR_TOKEN' \
+curl -X POST 'https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/create' \
   -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
   -d '{
-    "rfc": "base64_encoded_rfc_image",
-    "ine": "base64_encoded_ine_image", 
-    "domicilio": "base64_encoded_address_proof_image"
+    "product_id": 123,
+    "quantity": 2,
+    "delivery_address": {
+      "street": "Av. Revolución 1234",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "01020",
+      "country": "México"
+    },
+    "special_instructions": "Entregar en horario de oficina"
   }'
 ```
 </RequestExample>
 
-<ParamField body="rfc" type="string">
-Imagen del RFC codificada en base64. Requerida solo para productos CEVER (certificados de regalo).
-</ParamField>
-
-<ParamField body="ine" type="string">
-Imagen del INE codificada en base64. Requerida solo para productos CEVER.
-</ParamField>
-
-<ParamField body="domicilio" type="string">
-Imagen del comprobante de domicilio codificada en base64. Requerida solo para productos CEVER.
-</ParamField>
-
-### Productos Especiales
-
-<Info>
-El sistema maneja diferentes tipos de productos con validaciones específicas:
-
-**Productos CEVER** (SKUs: CEVER15, CEVER25, CEVER50):
-- Requieren documentación adicional (RFC, INE, comprobante de domicilio)
-- Las imágenes se almacenan en el servidor para verificación
-
-**Productos Posada** (SKUs: GP-KTS01, GP-PKTS02, GP-KTS03):
-- Se registran automáticamente en el sistema de emails de Posadas
-- Requieren información de contacto completa
-</Info>
+### Response
 
 <ResponseExample>
-```json Success
+```json Success (201 Created)
 {
   "success": true,
-  "available": 1200,
-  "orders": [
-    {
-      "id": "ORD-2024-001235",
-      "product": {
-        "id": 12345,
-        "name": "Smartphone Samsung Galaxy A54",
-        "points_value": 1500,
-        "quantity": 1
-      },
-      "status": "PENDING"
+  "message": "Order created successfully",
+  "data": {
+    "order_id": "PO-2024-001234",
+    "status": "pending",
+    "product": {
+      "id": 123,
+      "name": "Smartphone Samsung Galaxy",
+      "sku": "SAM-GAL-001",
+      "points_cost": 15000
     },
-    {
-      "id": "ORD-2024-001236", 
-      "product": {
-        "id": 67890,
-        "name": "Audífonos Sony WH-1000XM4",
-        "points_value": 800,
-        "quantity": 2
-      },
-      "status": "PENDING"
-    }
-  ],
-  "total_points_used": 3100,
-  "processing_summary": {
-    "total_products": 3,
-    "successful_orders": 2,
-    "failed_orders": 0
+    "quantity": 2,
+    "total_points": 30000,
+    "delivery_address": {
+      "street": "Av. Revolución 1234",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "01020",
+      "country": "México"
+    },
+    "special_instructions": "Entregar en horario de oficina",
+    "estimated_delivery": "2024-01-20",
+    "tracking_number": null,
+    "created_at": "2024-01-15T10:30:00Z"
   }
 }
 ```
 </ResponseExample>
 
 <ResponseExample>
-```json Error - Empty Cart
+```json Error - Insufficient Points (400 Bad Request)
 {
   "success": false,
-  "error": "ForbiddenException",
-  "message": "Carrito vacío.",
-  "action_required": "add_products_to_cart"
+  "message": "Insufficient points for this redemption",
+  "error": {
+    "code": "INSUFFICIENT_POINTS",
+    "details": {
+      "required_points": 30000,
+      "available_points": 25000,
+      "shortage": 5000
+    }
+  }
 }
 ```
 </ResponseExample>
 
 <ResponseExample>
-```json Error - Missing CEVER Documents
+```json Error - Product Not Available (404 Not Found)
 {
   "success": false,
-  "error": "ForbiddenException",
-  "message": "Falta la imagen del RFC para realizar la redención",
-  "required_documents": ["rfc", "ine", "domicilio"],
-  "reason": "cever_product_in_cart"
+  "message": "Product not found or not available for redemption",
+  "error": {
+    "code": "PRODUCT_NOT_AVAILABLE",
+    "details": {
+      "product_id": 123,
+      "reason": "out_of_stock"
+    }
+  }
 }
 ```
 </ResponseExample>
 
-<Warning>
-Para productos CEVER, todas las imágenes de documentos son obligatorias. El sistema validará la presencia de RFC, INE y comprobante de domicilio antes de procesar el canje.
-</Warning>
+### Response Fields
+
+<ResponseField name="success" type="boolean" required>
+Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+Human-readable message describing the result
+</ResponseField>
+
+<ResponseField name="data" type="object">
+Order information (only present on success)
+
+<Expandable title="Order Properties">
+<ResponseField name="order_id" type="string">
+Unique identifier for the created order
+</ResponseField>
+
+<ResponseField name="status" type="string">
+Current order status: `pending`, `processing`, `shipped`, `delivered`, `cancelled`
+</ResponseField>
+
+<ResponseField name="product" type="object">
+Product information
+
+<Expandable title="Product Details">
+<ResponseField name="id" type="integer">
+Product unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+Product name
+</ResponseField>
+
+<ResponseField name="sku" type="string">
+Product SKU code
+</ResponseField>
+
+<ResponseField name="points_cost" type="integer">
+Points required per unit
+</ResponseField>
+</Expandable>
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+Number of units ordered
+</ResponseField>
+
+<ResponseField name="total_points" type="integer">
+Total points deducted for this order
+</ResponseField>
+
+<ResponseField name="estimated_delivery" type="string">
+Estimated delivery date (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="tracking_number" type="string | null">
+Shipping tracking number (null until shipped)
+</ResponseField>
+</Expandable>
+</ResponseField>
+
+<ResponseField name="error" type="object">
+Error details (only present on failure)
+
+<Expandable title="Error Properties">
+<ResponseField name="code" type="string">
+Error code for programmatic handling
+</ResponseField>
+
+<ResponseField name="details" type="object">
+Additional error context and information
+</ResponseField>
+</Expandable>
+</ResponseField>
 
 ---
 
-# Gestión del Carrito de Compras
+## Purchase Shopping Cart
 
-## Obtener Contenido del Carrito
+`POST https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/purchase-shopping-cart`
 
-Recupera todos los productos agregados al carrito de compras del colaborador.
+Processes all items in the collaborator's shopping cart and creates redemption orders.
+
+### Request Body
+
+<ParamField body="delivery_address" type="object" required>
+Complete delivery address information
+
+<Expandable title="Address Properties">
+<ParamField body="street" type="string" required>
+Street address including number
+</ParamField>
+
+<ParamField body="city" type="string" required>
+City name
+</ParamField>
+
+<ParamField body="state" type="string" required>
+State or province
+</ParamField>
+
+<ParamField body="postal_code" type="string" required>
+Postal or ZIP code
+</ParamField>
+
+<ParamField body="country" type="string" required>
+Country name
+</ParamField>
+</Expandable>
+</ParamField>
+
+<ParamField body="special_instructions" type="string">
+Optional delivery instructions for all items
+</ParamField>
+
+<ParamField body="payment_method" type="string">
+Payment method preference: `points_only`, `mixed` (points + cash)
+</ParamField>
 
 <RequestExample>
 ```bash cURL
-curl -X GET '/api/v2/collaborator/purchase-orders/get-cart' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
+curl -X POST 'https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/purchase-shopping-cart' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -d '{
+    "delivery_address": {
+      "street": "Calle Insurgentes 567",
+      "city": "Guadalajara",
+      "state": "Jalisco",
+      "postal_code": "44100",
+      "country": "México"
+    },
+    "special_instructions": "Llamar antes de entregar",
+    "payment_method": "points_only"
+  }'
 ```
 </RequestExample>
 
+### Response
+
 <ResponseExample>
-```json Success
+```json Success (201 Created)
 {
-  "cart": [
-    {
-      "id": 12345,
-      "name": "Smartphone Samsung Galaxy A54",
-      "part_number": "SAM-A54-128GB",
-      "points_value": 1500,
-      "quantity": 1,
-      "stock": "25",
-      "category": "Electrónicos",
-      "vendor": "Samsung",
-      "description": {
-        "large": "Smartphone Samsung Galaxy A54 con 128GB de almacenamiento...",
-        "medium": "Samsung Galaxy A54 128GB",
-        "short": "Galaxy A54"
+  "success": true,
+  "message": "Shopping cart processed successfully",
+  "data": {
+    "batch_id": "BATCH-2024-001234",
+    "total_orders": 3,
+    "total_points_used": 45000,
+    "orders": [
+      {
+        "order_id": "PO-2024-001235",
+        "product": {
+          "id": 123,
+          "name": "Smartphone Samsung Galaxy",
+          "sku": "SAM-GAL-001"
+        },
+        "quantity": 1,
+        "points_cost": 15000,
+        "status": "pending"
+      },
+      {
+        "order_id": "PO-2024-001236",
+        "product": {
+          "id": 456,
+          "name": "Audífonos Bluetooth",
+          "sku": "AUD-BT-002"
+        },
+        "quantity": 2,
+        "points_cost": 15000,
+        "status": "pending"
+      }
+    ],
+    "delivery_address": {
+      "street": "Calle Insurgentes 567",
+      "city": "Guadalajara",
+      "state": "Jalisco",
+      "postal_code": "44100",
+      "country": "México"
+    },
+    "estimated_delivery": "2024-01-22",
+    "created_at": "2024-01-15T14:45:00Z"
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Empty Cart (400 Bad Request)
+{
+  "success": false,
+  "message": "Shopping cart is empty",
+  "error": {
+    "code": "EMPTY_CART",
+    "details": {
+      "cart_items": 0
+    }
+  }
+}
+```
+</ResponseExample>
+
+### Response Fields
+
+<ResponseField name="success" type="boolean" required>
+Indicates if the operation was successful
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+Human-readable message describing the result
+</ResponseField>
+
+<ResponseField name="data" type="object">
+Batch processing information (only present on success)
+
+<Expandable title="Batch Properties">
+<ResponseField name="batch_id" type="string">
+Unique identifier for the batch of orders
+</ResponseField>
+
+<ResponseField name="total_orders" type="integer">
+Number of orders created from cart items
+</ResponseField>
+
+<ResponseField name="total_points_used" type="integer">
+Total points deducted across all orders
+</ResponseField>
+
+<ResponseField name="orders" type="array">
+Array of individual orders created
+
+<Expandable title="Order Items">
+<ResponseField name="order_id" type="string">
+Unique identifier for each order
+</ResponseField>
+
+<ResponseField name="product" type="object">
+Product information for each order
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+Quantity ordered for each product
+</ResponseField>
+
+<ResponseField name="points_cost" type="integer">
+Total points for this specific order
+</ResponseField>
+
+<ResponseField name="status" type="string">
+Status of each individual order
+</ResponseField>
+</Expandable>
+</ResponseField>
+</Expandable>
+</ResponseField>
+
+---
+
+## Get Shopping Cart
+
+`GET https://api.chingonesmodelo.com.mx/api/v2/collaborator/shopping-cart`
+
+Retrieves the current contents of the collaborator's shopping cart.
+
+<RequestExample>
+```bash cURL
+curl -X GET 'https://api.chingonesmodelo.com.mx/api/v2/collaborator/shopping-cart' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
+```
+</RequestExample>
+
+### Response
+
+<ResponseExample>
+```json Success (200 OK)
+{
+  "success": true,
+  "data": {
+    "cart_id": "CART-USER-123",
+    "items": [
+      {
+        "cart_item_id": 1,
+        "product": {
+          "id": 123,
+          "name": "Smartphone Samsung Galaxy",
+          "sku": "SAM-GAL-001",
+          "points_cost": 15000,
+          "image_url": "https://cdn.example.com/products/samsung-galaxy.jpg",
+          "description": "Smartphone de última generación",
+          "availability": "in_stock"
+        },
+        "quantity": 1,
+        "subtotal_points": 15000,
+        "added_at": "2024-01-15T09:30:00Z"
+      },
+      {
+        "cart_item_id": 2,
+        "product": {
+          "id": 456,
+          "name": "Audífonos Bluetooth",
+          "sku": "AUD-BT-002",
+          "points_cost": 7500,
+          "image_url": "https://cdn.example.com/products/bluetooth-headphones.jpg",
+          "description": "Audífonos inalámbricos de alta calidad",
+          "availability": "in_stock"
+        },
+        "quantity": 2,
+        "subtotal_points": 15000,
+        "added_at": "2024-01-15T10:15:00Z"
+      }
+    ],
+    "summary": {
+      "total_items": 2,
+      "total_quantity": 3,
+      "total_points": 30000
+    },
+    "updated_at": "2024-01-15T10:15:00Z"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Add Item to Cart
+
+`POST https://api.chingonesmodelo.com.mx/api/v2/collaborator/shopping-cart/add`
+
+Adds a product to the collaborator's shopping cart.
+
+### Request Body
+
+<ParamField body="product_id" type="integer" required>
+Unique identifier of the product to add
+</ParamField>
+
+<ParamField body="quantity" type="integer" required>
+Number of units to add (must be positive)
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X POST 'https://api.chingonesmodelo.com.mx/api/v2/collaborator/shopping-cart/add' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -d '{
+    "product_id": 789,
+    "quantity": 1
+  }'
+```
+</RequestExample>
+
+### Response
+
+<ResponseExample>
+```json Success (200 OK)
+{
+  "success": true,
+  "message": "Product added to cart successfully",
+  "data": {
+    "cart_item_id": 3,
+    "product": {
+      "id": 789,
+      "name": "Tablet iPad Air",
+      "sku": "APPLE-IPAD-AIR",
+      "points_cost": 25000
+    },
+    "quantity": 1,
+    "subtotal_points": 25000,
+    "cart_summary": {
+      "total_items": 3,
+      "total_quantity": 4,
+      "total_points": 55000
+    }
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Remove Item from Cart
+
+`DELETE https://api.chingonesmodelo.com.mx/api/v2/collaborator/shopping-cart/remove/{cart_item_id}`
+
+Removes a specific item from the shopping cart.
+
+### Path Parameters
+
+<ParamField path="cart_item_id" type="integer" required>
+Unique identifier of the cart item to remove
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE 'https://api.chingonesmodelo.com.mx/api/v2/collaborator/shopping-cart/remove/3' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
+```
+</RequestExample>
+
+### Response
+
+<ResponseExample>
+```json Success (200 OK)
+{
+  "success": true,
+  "message": "Item removed from cart successfully",
+  "data": {
+    "removed_item_id": 3,
+    "cart_summary": {
+      "total_items": 2,
+      "total_quantity": 3,
+      "total_points": 30000
+    }
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Get Order History
+
+`GET https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/history`
+
+Retrieves the collaborator's order history with pagination.
+
+### Query Parameters
+
+<ParamField query="page" type="integer" default="1">
+Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="integer" default="10">
+Number of orders per page (max 50)
+</ParamField>
+
+<ParamField query="status" type="string">
+Filter by order status: `pending`, `processing`, `shipped`, `delivered`, `cancelled`
+</ParamField>
+
+<ParamField query="date_from" type="string">
+Filter orders from this date (ISO 8601 format)
+</ParamField>
+
+<ParamField query="date_to" type="string">
+Filter orders until this date (ISO 8601 format)
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X GET 'https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/history?page=1&limit=10&status=delivered' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
+```
+</RequestExample>
+
+### Response
+
+<ResponseExample>
+```json Success (200 OK)
+{
+  "success": true,
+  "data": {
+    "orders": [
+      {
+        "order_id": "PO-2024-001200",
+        "status": "delivered",
+        "product": {
+          "id": 123,
+          "name": "Smartphone Samsung Galaxy",
+          "sku": "SAM-GAL-001",
+          "image_url": "https://cdn.example.com/products/samsung-galaxy.jpg"
+        },
+        "quantity": 1,
+        "points_used": 15000,
+        "order_date": "2024-01-10T10:30:00Z",
+        "delivery_date": "2024-01-15T14:20:00Z",
+        "tracking_number": "TRK123456789"
+      },
+      {
+        "order_id": "PO-2024-001150",
+        "status": "delivered",
+        "product": {
+          "id": 456,
+          "name": "Audífonos Bluetooth",
+          "sku": "AUD-BT-002",
+          "image_url": "https://cdn.example.com/products/bluetooth-headphones.jpg"
+        },
+        "quantity": 1,
+        "points_used": 7500,
+        "order_date": "2024-01-08T15:45:00Z",
+        "delivery_date": "2024-01-12T11:30:00Z",
+        "tracking_number": "TRK987654321"
+      }
+    ],
+    "pagination": {
+      "current_page": 1,
+      "per_page": 10,
+      "total_orders": 25,
+      "total_pages": 3,
+      "has_next_page": true,
+      "has_previous_page": false
+    },
+    "summary": {
+      "total_points_used": 125000,
+      "total_orders": 25,
+      "orders_by_status": {
+        "pending": 2,
+        "processing": 3,
+        "shipped": 5,
+        "delivered": 15,
+        "cancelled": 0
       }
     }
-  ],
-  "cever": false,
-  "total_items": 1,
-  "total_points": 1500
+  }
 }
 ```
 </ResponseExample>
 
-## Agregar Producto al Carrito
+---
 
-Agrega un producto al carrito de compras o actualiza la cantidad si ya existe.
+## Get Order Details
+
+`GET https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/{order_id}`
+
+Retrieves detailed information about a specific order.
+
+### Path Parameters
+
+<ParamField path="order_id" type="string" required>
+Unique identifier of the order
+</ParamField>
 
 <RequestExample>
 ```bash cURL
-curl -X PUT '/api/v2/collaborator/purchase-orders/add-to-cart' \
-  -H 'Authorization: Bearer YOUR_TOKEN' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "product_id": 12345,
-    "quantity": 2
-  }'
+curl -X GET 'https://api.chingonesmodelo.com.mx/api/v2/collaborator/purchase-orders/PO-2024-001234' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN'
 ```
 </RequestExample>
 
-<ParamField body="product_id" type="integer" required>
-ID único del producto a agregar al carrito.
-</ParamField>
-
-<ParamField body="quantity" type="integer" default="1">
-Cantidad del producto a agregar. Si el producto ya existe en el carrito, se actualizará con esta cantidad.
-</ParamField>
+### Response
 
 <ResponseExample>
-```json Success
-{
-  "cart": [
-    {
-      "id": 12345,
-      "name": "Smartphone Samsung Galaxy A54",
-      "quantity": 2,
-      "points_value": 1500,
-      "total_points": 3000
-    }
-  ],
-  "cever": false
-}
-```
-</ResponseExample>
-
-## Remover Producto del Carrito
-
-Elimina completamente un producto del carrito de compras.
-
-<RequestExample>
-```bash cURL
-curl -X DELETE '/api/v2/collaborator/purchase-orders/remove-from-cart/12345' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
-```
-</RequestExample>
-
-<ParamField path="product_id" type="integer" required>
-ID único del producto a remover del carrito.
-</ParamField>
-
-<ResponseExample>
-```json Success
+```json Success (200 OK)
 {
   "success": true,
-  "message": "Producto removido del carrito exitosamente",
-  "remaining_items": 2
+  "data": {
+    "order_id": "PO-2024-001234",
+    "status": "shipped",
+    "product": {
+      "id": 123,
+      "name": "Smartphone Samsung Galaxy",
+      "sku": "SAM-GAL-001",
+      "description": "Smartphone de última generación con cámara de 108MP",
+      "image_url": "https://cdn.example.com/products/samsung-galaxy.jpg",
+      "points_cost": 15000
+    },
+    "quantity": 1,
+    "total_points": 15000,
+    "delivery_address": {
+      "street": "Av. Revolución 1234",
+      "city": "Ciudad de México",
+      "state": "CDMX",
+      "postal_code": "01020",
+      "country": "México"
+    },
+    "special_instructions": "Entregar en horario de oficina",
+    "order_date": "2024-01-15T10:30:00Z",
+    "estimated_delivery": "2024-01-20T00:00:00Z",
+    "actual_delivery": null,
+    "tracking_number": "TRK555666777",
+    "tracking_url": "https://tracking.example.com/TRK555666777",
+    "status_history": [
+      {
+        "status": "pending",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "note": "Order created and pending processing"
+      },
+      {
+        "status": "processing",
+        "timestamp": "2024-01-15T14:20:00Z",
+        "note": "Order is being prepared for shipment"
+      },
+      {
+        "status": "shipped",
+        "timestamp": "2024-01-16T09:15:00Z",
+        "note": "Order shipped with tracking number TRK555666777"
+      }
+    ]
+  }
 }
 ```
 </ResponseExample>
 
 ---
 
-# Consulta de Órdenes
+## Common Error Responses
 
-## Listar Órdenes de Compra
-
-Obtiene el historial completo de órdenes de compra del colaborador.
-
-<RequestExample>
-```bash cURL
-curl -X GET '/api/v2/collaborator/purchase-orders/main' \
-  -H 'Authorization: Bearer YOUR_TOKEN'
-```
-</RequestExample>
+### Authentication Errors
 
 <ResponseExample>
-```json Success
-[
-  {
-    "id": "ORD-2024-001234",
-    "total": 1500,
-    "status": "TRANSIT",
-    "tracking_number": "1234567890",
-    "created": "2024-01-15T10:30:00Z",
-    "modified": "2024-01-16T14:20:00Z",
-    "dhl": true,
-    "link": "https://www.dhl.com/mx-es/home/rastreo.html?tracking-id=1234567890",
-    "product": {
-      "name": "Smartphone Samsung Galaxy A54",
-      "part_number": "SAM-A54-128GB",
-      "category": "Electrónicos",
-      "subcategory": "Smartphones",
-      "vendor": "Samsung",
-      "description": "Smartphone Samsung Galaxy A54 con 128GB...",
-      "price": 1500,
-      "quantity": 1
-    }
-  },
-  {
-    "id": "ORD-2024-001235",
-    "total": 800,
-    "status": "PENDING",
-    "tracking_number": "Pendiente",
-    "created": "2024-01-14T09:15:00Z",
-    "modified": "2024-01-14T09:15:00Z",
-    "dhl": false,
-    "link": "",
-    "product": {
-      "name": "Audífonos Sony WH-1000XM4",
-      "part_number": "SONY-WH1000XM4",
-      "category": "Electrónicos",
-      "subcategory": "Audio",
-      "vendor": "Sony",
-      "description": "Audífonos inalámbricos con cancelación de ruido...",
-      "price": 800,
-      "quantity": 1
+```json Unauthorized (401)
+{
+  "success": false,
+  "message": "Authentication required",
+  "error": {
+    "code": "UNAUTHORIZED",
+    "details": "Invalid or missing authentication token"
+  }
+}
+```
+</ResponseExample>
+
+### Validation Errors
+
+<ResponseExample>
+```json Validation Error (422)
+{
+  "success": false,
+  "message": "Validation failed",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "details": {
+      "product_id": ["Product ID is required"],
+      "quantity": ["Quantity must be greater than 0"],
+      "delivery_address.postal_code": ["Postal code format is invalid"]
     }
   }
-]
+}
 ```
 </ResponseExample>
 
-### Estados de Órdenes
+### Rate Limiting
 
-<Info>
-Los posibles estados de una orden son:
-
-- **PENDING**: Orden creada, pendiente de procesamiento
-- **TRANSIT**: Orden en tránsito (equivale a SENT en el sistema)
-- **DELIVERED**: Orden entregada exitosamente
-- **CANCELED**: Orden cancelada
-</Info>
+<ResponseExample>
+```json Rate Limit Exceeded (429)
+{
+  "success": false,
+  "message": "Rate limit exceeded",
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "details": {
+      "limit": 100,
+      "window": "1 hour",
+      "retry_after": 3600
+    }
+  }
+}
+```
+</ResponseExample>
 
 ---
 
-# Manejo de Errores
+## HTTP Status Codes
 
-## Errores Comunes
-
-<ResponseExample>
-```json Authentication Error
-{
-  "success": false,
-  "error": "UnauthorizedException",
-  "message": "Token de autenticación inválido o expirado",
-  "code": 401
-}
-```
-</ResponseExample>
-
-<ResponseExample>
-```json Product Not Found
-{
-  "success": false,
-  "error": "NotFoundException", 
-  "message": "El producto no se encuentra disponible",
-  "code": 404
-}
-```
-</ResponseExample>
-
-<ResponseExample>
-```json Insufficient Points
-{
-  "success": false,
-  "error": "ForbiddenException",
-  "message": "No dispone de saldo suficientes para realizar la redención",
-  "details": {
-    "required_points": 1500,
-    "available_points": 800
-  },
-  "code": 403
-}
-```
-</ResponseExample>
-
-<ResponseExample>
-```json Internal Server Error
-{
-  "success": false,
-  "error": "InternalErrorException",
-  "message": "No se pudo agregar el producto al carrito de compras",
-  "code": 500
-}
-```
-</ResponseExample>
-
-## Códigos de Estado HTTP
-
-| Código | Descripción |
-|--------|-------------|
-| 200 | Solicitud exitosa |
-| 201 | Recurso creado exitosamente |
-| 400 | Solicitud malformada |
-| 401 | No autorizado |
-| 403 | Prohibido - Insuficientes permisos o puntos |
-| 404 | Recurso no encontrado |
-| 500 | Error interno del servidor |
+| Status Code | Description |
+|-------------|-------------|
+| `200` | OK - Request successful |
+| `201` | Created - Resource created successfully |
+| `400` | Bad Request - Invalid request data |
+| `401` | Unauthorized - Authentication required |
+| `403` | Forbidden - Insufficient permissions |
+| `404` | Not Found - Resource not found |
+| `422` | Unprocessable Entity - Validation errors |
+| `429` | Too Many Requests - Rate limit exceeded |
+| `500` | Internal Server Error - Server error |
 
 ---
 
-# Flujo de Trabajo Recomendado
+## Best Practices
 
-<Steps>
-<Step title="Verificar saldo de puntos">
-  Antes de realizar cualquier canje, verifique que el colaborador tenga suficientes puntos disponibles.
-</Step>
-
-<Step title="Validar dirección de entrega">
-  Asegúrese de que el colaborador tenga una dirección de entrega registrada en el sistema.
-  
-  <Warning>
-  Sin dirección de entrega, no se pueden procesar canjes de productos físicos.
-  </Warning>
-</Step>
-
-<Step title="Seleccionar tipo de canje">
-  - **Canje Directo**: Para productos individuales
-  - **Carrito de Compras**: Para múltiples productos
-</Step>
-
-<Step title="Procesar documentación especial">
-  Para productos CEVER, prepare las imágenes de documentos requeridos en formato base64.
-  
-  <Tip>
-  Las imágenes deben ser claras y legibles para evitar rechazos en el procesamiento.
-  </Tip>
-</Step>
-
-<Step title="Confirmar transacción">
-  Una vez procesado el canje, los puntos se deducen inmediatamente y se genera la orden de compra.
-  
-  <Check>
-  Guarde el ID de la orden para futuras consultas de estado.
-  </Check>
-</Step>
-</Steps>
-
----
-
-# Limitaciones y Consideraciones
+<Tip>
+**Recommended Workflow for Shopping Cart Redemptions:**
+1. Add items to cart using `POST /shopping-cart/add`
+2. Review cart contents with `GET /shopping-cart`
+3. Process entire cart with `POST /purchase-shopping-cart`
+4. Monitor order status using `GET /history` or `GET /{order_id}`
+</Tip>
 
 <Warning>
-**Limitaciones importantes del sistema:**
-
-- Los canjes son transacciones irreversibles
-- Los productos con stock limitado pueden agotarse durante el proceso
-- Las imágenes para productos CEVER deben ser válidas y legibles
-- El sistema puede tener períodos de mantenimiento donde los canjes están deshabilitados
+**Important Considerations:**
+- All redemptions are final and cannot be cancelled once processed
+- Points are deducted immediately upon successful order creation
+- Delivery addresses must be complete and valid
+- Some products may have quantity limitations or regional restrictions
 </Warning>
 
 <Info>
-**Consideraciones de rendimiento:**
-
-- El procesamiento de carrito con múltiples productos puede tomar varios segundos
-- Las transacciones utilizan bloqueos de base de datos para evitar condiciones de carrera
-- Se recomienda implementar timeouts apropiados en las solicitudes del cliente
+**Rate Limiting:**
+- Maximum 100 requests per hour per collaborator
+- Shopping cart operations are limited to 20 requests per minute
+- Order creation is limited to 10 requests per minute
 </Info>
-
-<Tip>
-**Mejores prácticas:**
-
-- Implemente validación del lado del cliente antes de enviar solicitudes
-- Maneje apropiadamente los errores de red y timeouts
-- Proporcione feedback visual al usuario durante el procesamiento
-- Mantenga una copia local del estado del carrito para mejor UX
-</Tip>

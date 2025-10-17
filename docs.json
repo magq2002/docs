@@ -59,6 +59,15 @@
             ]
           },
           {
+            "group": "Purchase orders module",
+            "pages": [
+              "api-reference/purchase-orders/overview",
+              "api-reference/purchase-orders/direct-redemption",
+              "api-reference/purchase-orders/shopping-cart",
+              "api-reference/purchase-orders/order-management"
+            ]
+          },
+          {
             "group": "Endpoint examples",
             "pages": [
               "api-reference/endpoint/get",
