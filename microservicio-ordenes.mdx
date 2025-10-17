@@ -1,0 +1,522 @@
+---
+title: "Microservicio de Órdenes de Compra"
+description: "Documentación completa del funcionamiento del microservicio para carritos de compras y canje directo de productos"
+---
+
+# Microservicio de Órdenes de Compra
+
+El sistema utiliza un **microservicio SAAS** para gestionar las órdenes de compra de productos de incentivos, manejando tanto canjes directos como carritos de compras completos.
+
+## Arquitectura General
+
+<Info>
+El microservicio actúa como el sistema central de gestión de órdenes, mientras que el backend local maneja la lógica de negocio, validaciones y la gestión de puntos de los usuarios.
+</Info>
+
+### Componentes Principales
+
+<CardGroup cols={2}>
+<Card title="Backend Local" icon="server">
+  Maneja validaciones, lógica de negocio, gestión de puntos y comunicación con el microservicio
+</Card>
+
+<Card title="Microservicio SAAS" icon="cloud">
+  Sistema centralizado para crear, gestionar y procesar órdenes de compra
+</Card>
+</CardGroup>
+
+La comunicación se realiza mediante HTTP a través de las clases:
+- `HttpClientService.php` - Cliente HTTP para comunicación
+- `PurchaseOrderSaasService.php` - Servicio específico para órdenes
+- `OrderRepository.php` - Repositorio para manejo de órdenes
+
+## Flujos de Funcionamiento
+
+### Canje Directo (Producto Individual)
+
+<Steps>
+<Step title="Validación Inicial">
+  El endpoint `POST /api/v2/collaborator/purchase-orders/create` ejecuta las siguientes validaciones:
+
+  - ✅ Verificar que se especifique un `product_id`
+  - ✅ Validar que el usuario esté autenticado
+  - ✅ Confirmar que el usuario tenga una dirección registrada
+  - ✅ Verificar que el producto esté disponible en el catálogo
+  - ✅ Validar que el usuario tenga puntos suficientes
+
+  <Warning>
+  Si falta alguna validación, se lanza una `ForbiddenException` con el mensaje correspondiente.
+  </Warning>
+</Step>
+
+<Step title="Transacción de Base de Datos">
+  Se ejecuta una transacción atómica que incluye:
+
+  ```php
+  ConnectionManager::get('default')->transactional(function ($conn) {
+      // Bloqueo del perfil del usuario (FOR UPDATE)
+      $profile = $Profiles->find("byUserID", ["userID" => $User['id']])
+                         ->epilog('FOR UPDATE')->first();
+      
+      // Creación de la orden en el microservicio
+      $order = $this->getRepository("Order")->createOrder($profile, $address, $product->id);
+      
+      // Actualización de puntos canjeados
+      $profile->redeemed_points += $product->points_value;
+      $Profiles->save($profile);
+      
+      // Envío de email de confirmación
+      $this->getMailer("PurchaseOrder")->new($currentUser, $order);
+  });
+  ```
+
+  <Check>
+  Si algo falla durante el proceso, se cancela automáticamente la orden en el microservicio y se revierten todos los cambios.
+  </Check>
+</Step>
+</Steps>
+
+### Canje por Carrito de Compras
+
+<Steps>
+<Step title="Validación del Carrito">
+  El endpoint `POST /api/v2/collaborator/purchase-orders/purchase-shopping-cart` valida:
+
+  - ✅ Que el carrito no esté vacío
+  - ✅ Que el usuario esté autenticado
+  - ✅ Que tenga dirección de entrega registrada
+  - ✅ Validaciones especiales para productos CEVER
+
+  <Info>
+  Los productos CEVER requieren documentos adicionales: RFC, INE y comprobante de domicilio en formato base64.
+  </Info>
+</Step>
+
+<Step title="Procesamiento de Productos Especiales">
+  El sistema identifica automáticamente productos que requieren manejo especial:
+
+  <Tabs>
+  <Tab title="Productos Posada">
+    **SKUs**: `GP-KTS01`, `GP-PKTS02`, `GP-KTS03`
+    
+    Se registran en la tabla `EmailPosadas` para seguimiento especial:
+    ```php
+    $email = $emails->newEntity([
+        'order_id'      => $productValue["order_id"],
+        'user_name'     => $profile->first_names . ' ' . $profile->last_names,
+        'user_email'    => $profile->email,
+        'user_phone'    => $profile->cellphone,
+        'product_name'  => $productValue["product_name"],
+        'status'        => 'PENDING',
+    ]);
+    ```
+  </Tab>
+
+  <Tab title="Productos CEVER">
+    **SKUs**: `CEVER15`, `CEVER25`, `CEVER50`
+    
+    Requieren documentos que se guardan como imágenes PNG:
+    ```php
+    $documents = $this->CertificateDocuments->newEntity([
+        'order_id'          => $product["order_id"],
+        'img_rfc'           => $rfc_file,
+        'img_ine'           => $ine_file,
+        'img_proof_address' => $voucher_file,
+        'image_path'        => $path
+    ]);
+    ```
+  </Tab>
+  </Tabs>
+</Step>
+
+<Step title="Creación de Órdenes">
+  Para cada producto en el carrito:
+
+  1. **Cálculo del precio total** en puntos
+  2. **Validación de puntos suficientes** del usuario
+  3. **Creación de orden individual** en el microservicio
+  4. **Actualización de puntos canjeados** del usuario
+  5. **Vaciado del carrito** de compras
+  6. **Envío de notificaciones** por email
+</Step>
+</Steps>
+
+## Payloads del Microservicio
+
+### Estructura Base del Payload
+
+<RequestExample>
+```json Payload Completo
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR123456",
+  "contact_name": "Juan Pérez",
+  "contact_cellphone": "5551234567",
+  "contact_landphone": "5551234567",
+  "contact_email": "juan.perez@email.com",
+  "address_country": "México",
+  "address_state": "Ciudad de México",
+  "address_city": "Ciudad de México",
+  "address_district": "Benito Juárez",
+  "address_municipality": "Benito Juárez",
+  "address_colony": "Del Valle",
+  "address_street": "Av. Insurgentes Sur",
+  "address_ext_number": "123",
+  "address_int_number": "4B",
+  "address_postal_code": "03100",
+  "address_references": "NA",
+  "address_lat": 19.4377344,
+  "address_lng": -99.1476314,
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "PROD123",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</RequestExample>
+
+### Campos del Payload
+
+<ParamField body="client" type="string" required>
+Código de la empresa cliente (ej: "MODELO_MX")
+</ParamField>
+
+<ParamField body="project" type="string" required>
+Identificador del proyecto (ej: "incentive_mx")
+</ParamField>
+
+<ParamField body="buyer_reference" type="string" required>
+Referencia única del comprador generada por el sistema
+</ParamField>
+
+<ParamField body="contact_name" type="string" required>
+Nombre completo del usuario que realiza la compra
+</ParamField>
+
+<ParamField body="contact_cellphone" type="string" required>
+Número de teléfono celular. Si está vacío se usa "0000000000"
+</ParamField>
+
+<ParamField body="contact_email" type="string" required>
+Email del usuario para notificaciones
+</ParamField>
+
+<ParamField body="address_*" type="string" required>
+Campos de dirección completa incluyendo país, estado, ciudad, colonia, calle, números exterior/interior y código postal
+</ParamField>
+
+<ParamField body="products" type="array" required>
+Array de productos con `product_id` y `product_quantity` para cada item
+</ParamField>
+
+### Ejemplos por Tipo de Canje
+
+<CodeGroup>
+```json Canje Directo
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR123456",
+  "contact_name": "María González",
+  "contact_email": "maria@email.com",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "LAPTOP001",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+
+```json Carrito Múltiple
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR789012",
+  "contact_name": "Carlos Rodríguez",
+  "contact_email": "carlos@email.com",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "LAPTOP001",
+      "product_quantity": 1
+    },
+    {
+      "product_id": "MOUSE002",
+      "product_quantity": 2
+    },
+    {
+      "product_id": "CEVER25",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</CodeGroup>
+
+## Base de Datos
+
+### Tablas Principales
+
+<Tabs>
+<Tab title="Usuarios y Perfiles">
+**UserProfile** - Información del usuario y gestión de puntos
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `user_id` | INT | ID del usuario (FK) |
+| `sharp` | VARCHAR | Código único del usuario |
+| `first_names` | VARCHAR | Nombres del usuario |
+| `last_names` | VARCHAR | Apellidos del usuario |
+| `email` | VARCHAR | Email del usuario |
+| `cellphone` | VARCHAR | Teléfono celular |
+| `accumulated_points` | INT | Puntos acumulados totales |
+| `redeemed_points` | INT | Puntos ya canjeados |
+
+**UserAddress** - Direcciones de entrega
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `user_id` | INT | ID del usuario (FK) |
+| `country` | VARCHAR | País |
+| `state` | VARCHAR | Estado |
+| `city` | VARCHAR | Ciudad |
+| `street` | VARCHAR | Calle |
+| `external_number` | VARCHAR | Número exterior |
+| `postal_code` | VARCHAR | Código postal |
+</Tab>
+
+<Tab title="Carrito de Compras">
+**ShoppingCarts** - Carritos de compras
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | INT | ID del carrito (PK) |
+| `user_id` | INT | ID del usuario propietario (FK) |
+| `created` | DATETIME | Fecha de creación |
+| `modified` | DATETIME | Fecha de modificación |
+
+**CartItems** - Items del carrito
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | INT | ID del item (PK) |
+| `shopping_cart_id` | INT | ID del carrito (FK) |
+| `product_id` | VARCHAR | ID del producto |
+| `quantity` | INT | Cantidad del producto |
+</Tab>
+
+<Tab title="Documentos Especiales">
+**CertificateDocuments** - Documentos para productos CEVER
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `order_id` | VARCHAR | ID de la orden (FK) |
+| `img_rfc` | VARCHAR | Archivo de imagen RFC |
+| `img_ine` | VARCHAR | Archivo de imagen INE |
+| `img_proof_address` | VARCHAR | Comprobante de domicilio |
+| `image_path` | VARCHAR | Ruta de almacenamiento |
+
+**EmailPosadas** - Seguimiento para productos Posada
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `order_id` | VARCHAR | ID de la orden (FK) |
+| `user_name` | VARCHAR | Nombre del usuario |
+| `user_email` | VARCHAR | Email del usuario |
+| `product_name` | VARCHAR | Nombre del producto |
+| `status` | ENUM | Estado ('PENDING', 'SENT', etc.) |
+</Tab>
+</Tabs>
+
+## Comunicación HTTP
+
+### Configuración del Cliente
+
+<CodeGroup>
+```php Headers HTTP
+$headers = [
+    'Content-Type: application/json',
+    'Accept: application/json',
+    'Authorization: Bearer ' . $token,
+    'X-Company-Code: ' . $companyCode
+];
+```
+
+```php Opciones cURL
+$curlOptions = [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_TIMEOUT => 30,
+    CURLOPT_HTTPHEADER => $headers
+];
+```
+</CodeGroup>
+
+### Respuestas del Microservicio
+
+<ResponseExample>
+```json Respuesta Exitosa (200/201)
+{
+  "success": true,
+  "order_id": "ORD123456789",
+  "status": "CREATED",
+  "tracking_number": null,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error 404 - No Encontrado
+{
+  "error": "Resource not found",
+  "message": "El producto especificado no existe",
+  "code": 404
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error 403 - No Autorizado
+{
+  "error": "Unauthorized",
+  "message": "Token de autorización inválido",
+  "code": 403
+}
+```
+</ResponseExample>
+
+## Manejo de Errores
+
+<Warning>
+El sistema implementa un manejo robusto de errores con rollback automático.
+</Warning>
+
+### Estrategias de Rollback
+
+<AccordionGroup>
+<Accordion title="Rollback Automático">
+Si ocurre cualquier error durante el proceso:
+
+1. **Cancelación de órdenes**: Se cancelan todas las órdenes creadas en el microservicio
+2. **Reversión de cambios**: Se revierten los cambios en la base de datos local
+3. **Restauración de puntos**: Se restauran los puntos del usuario
+4. **Preservación del carrito**: Se mantiene el carrito intacto (en caso de carrito)
+
+```php
+catch (\Throwable $th) {
+    foreach ($orders as $key => $valOrder) {
+        foreach ($valOrder as $singleOrder) {
+            $this->getRepository("Order")->cancelByID($singleOrder->id);
+        }
+    }
+    throw $th;
+}
+```
+</Accordion>
+
+<Accordion title="Validaciones Previas">
+Antes de procesar cualquier orden:
+
+- ✅ **Verificación de puntos suficientes**
+- ✅ **Validación de dirección completa**
+- ✅ **Verificación de disponibilidad de productos**
+- ✅ **Validación de documentos para productos especiales**
+- ✅ **Autenticación del usuario**
+</Accordion>
+
+<Accordion title="Transacciones Seguras">
+- **FOR UPDATE**: Previene condiciones de carrera en puntos del usuario
+- **Transacciones atómicas**: Operaciones de base de datos completamente reversibles
+- **Manejo de excepciones**: Rollback automático en caso de fallo
+- **Timeouts configurables**: Evita bloqueos indefinidos
+</Accordion>
+</AccordionGroup>
+
+### Códigos de Error Comunes
+
+| Código | Descripción | Acción |
+|--------|-------------|---------|
+| `200/201` | Éxito | Procesar respuesta normalmente |
+| `404` | Recurso no encontrado | Lanzar `NotFoundException` |
+| `403` | No autorizado | Lanzar `UnauthorizedException` |
+| `500+` | Error interno | Lanzar `InternalErrorException` |
+
+## Endpoints de la API
+
+### Canje Directo
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/collaborator/purchase-orders/create' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -d '{
+    "product_id": "PROD123"
+  }'
+```
+</RequestExample>
+
+### Carrito de Compras
+
+<RequestExample>
+```bash cURL
+curl -X POST '/api/v2/collaborator/purchase-orders/purchase-shopping-cart' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -d '{
+    "rfc": "base64_encoded_image",
+    "ine": "base64_encoded_image", 
+    "domicilio": "base64_encoded_image"
+  }'
+```
+</RequestExample>
+
+### Gestión del Carrito
+
+<Tabs>
+<Tab title="Obtener Carrito">
+```bash
+GET /api/v2/collaborator/purchase-orders/cart
+```
+</Tab>
+
+<Tab title="Agregar al Carrito">
+```bash
+PUT /api/v2/collaborator/purchase-orders/add-to-cart
+Content-Type: application/json
+
+{
+  "product_id": "PROD123",
+  "quantity": 2
+}
+```
+</Tab>
+
+<Tab title="Remover del Carrito">
+```bash
+DELETE /api/v2/collaborator/purchase-orders/remove-from-cart/{product_id}
+```
+</Tab>
+</Tabs>
+
+## Resumen del Flujo
+
+<Check>
+**Canje Directo**: Un producto → Una orden → Actualización de puntos → Email de confirmación
+</Check>
+
+<Check>
+**Carrito de Compras**: Múltiples productos → Una orden por producto → Vaciado del carrito → Manejo de productos especiales → Emails de confirmación
+</Check>
+
+<Tip>
+El microservicio garantiza la consistencia de datos mediante transacciones atómicas y mecanismos de rollback automático, asegurando que nunca se pierdan puntos ni se generen órdenes inconsistentes.
+</Tip>

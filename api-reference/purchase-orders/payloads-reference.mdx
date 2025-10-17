@@ -1,0 +1,463 @@
+---
+title: "Referencia de Payloads"
+description: "Ejemplos completos de payloads para comunicación con el microservicio de órdenes"
+---
+
+# Referencia de Payloads
+
+Esta sección documenta todos los formatos de payload utilizados para la comunicación con el microservicio de órdenes de compra.
+
+## Estructura Base del Payload
+
+Todos los payloads al microservicio siguen esta estructura base:
+
+<ParamField body="client" type="string" required>
+Identificador del cliente. Valor fijo: `"MODELO_MX"`
+</ParamField>
+
+<ParamField body="project" type="string" required>
+Identificador del proyecto. Valor fijo: `"incentive_mx"`
+</ParamField>
+
+<ParamField body="buyer_reference" type="string" required>
+Referencia única del comprador (ID del usuario)
+</ParamField>
+
+<ParamField body="contact_name" type="string" required>
+Nombre completo del usuario para contacto
+</ParamField>
+
+<ParamField body="contact_cellphone" type="string" required>
+Número de teléfono celular del usuario
+</ParamField>
+
+<ParamField body="contact_email" type="string" required>
+Dirección de email del usuario
+</ParamField>
+
+<ParamField body="address_country" type="string" required>
+País de la dirección de entrega
+</ParamField>
+
+<ParamField body="address_state" type="string" required>
+Estado de la dirección de entrega
+</ParamField>
+
+<ParamField body="address_city" type="string" required>
+Ciudad de la dirección de entrega
+</ParamField>
+
+<ParamField body="address_street" type="string" required>
+Calle de la dirección de entrega
+</ParamField>
+
+<ParamField body="address_ext_number" type="string" required>
+Número exterior de la dirección
+</ParamField>
+
+<ParamField body="address_postal_code" type="string" required>
+Código postal de la dirección
+</ParamField>
+
+<ParamField body="operation" type="string" required>
+Tipo de operación. Valor fijo: `"CREATE_ORDER"`
+</ParamField>
+
+<ParamField body="products" type="array" required>
+Array de productos a procesar en la orden
+</ParamField>
+
+## Ejemplos de Payloads por Tipo
+
+### Canje Directo - Producto Simple
+
+<RequestExample>
+```json Producto Electrónico
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR123456",
+  "contact_name": "María González",
+  "contact_cellphone": "5551234567",
+  "contact_email": "maria.gonzalez@email.com",
+  "address_country": "México",
+  "address_state": "Jalisco",
+  "address_city": "Guadalajara",
+  "address_street": "Av. Vallarta",
+  "address_ext_number": "1234",
+  "address_int_number": "Apt 5B",
+  "address_postal_code": "44100",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "LAPTOP001",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</RequestExample>
+
+### Canje Directo - Producto CEVER
+
+<RequestExample>
+```json Certificado de Regalo
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR789012",
+  "contact_name": "Carlos Rodríguez",
+  "contact_cellphone": "5559876543",
+  "contact_email": "carlos.rodriguez@email.com",
+  "address_country": "México",
+  "address_state": "Ciudad de México",
+  "address_city": "Ciudad de México",
+  "address_street": "Paseo de la Reforma",
+  "address_ext_number": "456",
+  "address_postal_code": "06600",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "CEVER25",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</RequestExample>
+
+### Carrito de Compras - Múltiples Productos
+
+<RequestExample>
+```json Carrito Mixto
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR345678",
+  "contact_name": "Ana Martínez",
+  "contact_cellphone": "5555551234",
+  "contact_email": "ana.martinez@email.com",
+  "address_country": "México",
+  "address_state": "Nuevo León",
+  "address_city": "Monterrey",
+  "address_street": "Av. Constitución",
+  "address_ext_number": "789",
+  "address_postal_code": "64000",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "SMARTPHONE001",
+      "product_quantity": 1
+    },
+    {
+      "product_id": "HEADPHONES002",
+      "product_quantity": 2
+    },
+    {
+      "product_id": "POWERBANK003",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</RequestExample>
+
+### Carrito con Productos Especiales
+
+<RequestExample>
+```json Carrito con CEVER y Posada
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR901234",
+  "contact_name": "Roberto Silva",
+  "contact_cellphone": "5554443333",
+  "contact_email": "roberto.silva@email.com",
+  "address_country": "México",
+  "address_state": "Yucatán",
+  "address_city": "Mérida",
+  "address_street": "Calle 60",
+  "address_ext_number": "123",
+  "address_postal_code": "97000",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "GP-KTS01",
+      "product_quantity": 1
+    },
+    {
+      "product_id": "CEVER15",
+      "product_quantity": 1
+    },
+    {
+      "product_id": "TABLET001",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</RequestExample>
+
+## Respuestas del Microservicio
+
+### Respuesta Exitosa
+
+<ResponseExample>
+```json Orden Creada
+{
+  "status": "success",
+  "message": "Order created successfully",
+  "data": {
+    "order_id": "ORD-2024-001234",
+    "reference": "USR123456-20240315-001",
+    "total_amount": 15000,
+    "currency": "points",
+    "status": "PENDING",
+    "estimated_delivery": "2024-03-25",
+    "tracking_number": null,
+    "products": [
+      {
+        "product_id": "LAPTOP001",
+        "product_name": "Laptop HP Pavilion",
+        "quantity": 1,
+        "unit_price": 15000,
+        "total_price": 15000
+      }
+    ],
+    "shipping_address": {
+      "country": "México",
+      "state": "Jalisco",
+      "city": "Guadalajara",
+      "street": "Av. Vallarta",
+      "ext_number": "1234",
+      "postal_code": "44100"
+    },
+    "created_at": "2024-03-15T10:30:00Z"
+  }
+}
+```
+</ResponseExample>
+
+### Respuesta de Error
+
+<ResponseExample>
+```json Error de Validación
+{
+  "status": "error",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "products",
+      "code": "INSUFFICIENT_STOCK",
+      "message": "Product LAPTOP001 is out of stock"
+    },
+    {
+      "field": "buyer_reference",
+      "code": "INSUFFICIENT_POINTS",
+      "message": "User has insufficient points for this purchase"
+    }
+  ],
+  "data": null
+}
+```
+</ResponseExample>
+
+## Validaciones de Payload
+
+### Campos Obligatorios
+
+<Warning>
+Todos los campos marcados como `required` deben estar presentes en el payload, de lo contrario el microservicio retornará un error de validación.
+</Warning>
+
+#### Validación de Productos
+
+<CodeGroup>
+```php Validación Básica
+function validateProducts($products) {
+    if (empty($products)) {
+        throw new ValidationException('Products array cannot be empty');
+    }
+    
+    foreach ($products as $product) {
+        if (empty($product['product_id'])) {
+            throw new ValidationException('Product ID is required');
+        }
+        
+        if (!isset($product['product_quantity']) || $product['product_quantity'] < 1) {
+            throw new ValidationException('Product quantity must be at least 1');
+        }
+    }
+}
+```
+
+```php Validación de Stock
+function validateStock($products) {
+    foreach ($products as $product) {
+        $available = $this->getProductStock($product['product_id']);
+        
+        if ($available < $product['product_quantity']) {
+            throw new StockException(
+                "Insufficient stock for product {$product['product_id']}"
+            );
+        }
+    }
+}
+```
+</CodeGroup>
+
+#### Validación de Dirección
+
+```php
+function validateAddress($payload) {
+    $required_fields = [
+        'address_country',
+        'address_state', 
+        'address_city',
+        'address_street',
+        'address_ext_number',
+        'address_postal_code'
+    ];
+    
+    foreach ($required_fields as $field) {
+        if (empty($payload[$field])) {
+            throw new ValidationException("Field {$field} is required");
+        }
+    }
+    
+    // Validar código postal mexicano
+    if (!preg_match('/^\d{5}$/', $payload['address_postal_code'])) {
+        throw new ValidationException('Invalid postal code format');
+    }
+}
+```
+
+## Campos Opcionales
+
+### Número Interior
+
+<ParamField body="address_int_number" type="string">
+Número interior de la dirección (opcional)
+</ParamField>
+
+### Referencias Adicionales
+
+<ParamField body="address_reference" type="string">
+Referencias adicionales para la dirección de entrega
+</ParamField>
+
+<ParamField body="delivery_notes" type="string">
+Notas especiales para la entrega
+</ParamField>
+
+## Configuración del Cliente
+
+### Variables de Entorno
+
+<Info>
+Los valores de `client` y `project` están configurados como variables de entorno en el sistema.
+</Info>
+
+```php
+// Configuración en config/app.php
+'Microservice' => [
+    'client' => env('MS_CLIENT', 'MODELO_MX'),
+    'project' => env('MS_PROJECT', 'incentive_mx'),
+    'base_url' => env('MS_BASE_URL', 'https://api.microservice.com'),
+    'timeout' => env('MS_TIMEOUT', 30)
+]
+```
+
+### Headers HTTP
+
+Todos los requests al microservicio incluyen estos headers:
+
+```http
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {api_token}
+X-Client-Version: 2.0
+X-Request-ID: {unique_request_id}
+```
+
+## Ejemplos de Integración
+
+### Canje Directo
+
+<CodeGroup>
+```php Controller Action
+public function directRedemption() {
+    $request_data = $this->request->getData();
+    
+    // Validar datos de entrada
+    $this->validateDirectRedemption($request_data);
+    
+    // Construir payload
+    $payload = $this->buildPayload($request_data, 'direct');
+    
+    // Enviar al microservicio
+    $response = $this->PurchaseOrderService->createOrder($payload);
+    
+    if ($response['status'] === 'success') {
+        // Procesar respuesta exitosa
+        $this->processSuccessfulOrder($response['data']);
+        
+        return $this->response
+            ->withType('application/json')
+            ->withStringBody(json_encode([
+                'success' => true,
+                'order_id' => $response['data']['order_id']
+            ]));
+    }
+    
+    // Manejar error
+    return $this->response
+        ->withStatus(400)
+        ->withType('application/json')
+        ->withStringBody(json_encode([
+            'success' => false,
+            'errors' => $response['errors']
+        ]));
+}
+```
+
+```php Service Class
+class PurchaseOrderService {
+    
+    public function createOrder($payload) {
+        $http = new Client([
+            'timeout' => Configure::read('Microservice.timeout')
+        ]);
+        
+        try {
+            $response = $http->post(
+                Configure::read('Microservice.base_url') . '/orders',
+                json_encode($payload),
+                [
+                    'type' => 'json',
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $this->getApiToken(),
+                        'X-Request-ID' => $this->generateRequestId()
+                    ]
+                ]
+            );
+            
+            return json_decode($response->getStringBody(), true);
+            
+        } catch (\Exception $e) {
+            Log::error('Microservice error: ' . $e->getMessage());
+            
+            return [
+                'status' => 'error',
+                'message' => 'Service temporarily unavailable',
+                'errors' => []
+            ];
+        }
+    }
+}
+```
+</CodeGroup>
+
+<Check>
+Esta referencia de payloads proporciona todos los formatos necesarios para integrar correctamente con el microservicio de órdenes de compra.
+</Check>

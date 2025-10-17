@@ -1,12 +1,16 @@
 ---
 title: "Create Direct Redemption"
-api: "POST https://api.example.com/api/v2/collaborator/purchase-orders/direct-redemption"
-description: "Create an immediate product redemption order for a collaborator"
+api: "POST /api/v2/collaborator/purchase-orders/purchase-product"
+description: "Redeem a single product directly using points"
 ---
 
-## Overview
+This endpoint allows collaborators to redeem individual products directly using their available points. The implementation validates the user's points balance, product availability, and processes the order through the purchase order microservice.
 
-This endpoint allows collaborators to instantly redeem products using their available points. The system validates point balance, product availability, and delivery information before creating the order.
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+Bearer token for API authentication. Format: `Bearer YOUR_API_KEY`
+</ParamField>
 
 <RequestExample>
 ```bash cURL

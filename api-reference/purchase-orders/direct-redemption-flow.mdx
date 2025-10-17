@@ -1,0 +1,235 @@
+---
+title: "Flujo de Canje Directo"
+description: "Proceso completo para el canje directo de productos individuales"
+---
+
+# Canje Directo (Producto Individual)
+
+El canje directo permite a los usuarios intercambiar sus puntos por un producto específico de manera inmediata, sin necesidad de usar el carrito de compras.
+
+## Proceso Completo
+
+<Steps>
+<Step title="Validación Inicial">
+  El endpoint `POST /api/v2/collaborator/purchase-orders/create` ejecuta las siguientes validaciones:
+
+  - ✅ Verificar que se especifique un `product_id`
+  - ✅ Validar que el usuario esté autenticado
+  - ✅ Confirmar que el usuario tenga una dirección registrada
+  - ✅ Verificar que el producto esté disponible en el catálogo
+  - ✅ Validar que el usuario tenga puntos suficientes
+
+  <Warning>
+  Si falta alguna validación, se lanza una `ForbiddenException` con el mensaje correspondiente.
+  </Warning>
+</Step>
+
+<Step title="Transacción de Base de Datos">
+  Se ejecuta una transacción atómica que incluye:
+
+  ```php
+  ConnectionManager::get('default')->transactional(function ($conn) {
+      // Bloqueo del perfil del usuario (FOR UPDATE)
+      $profile = $Profiles->find("byUserID", ["userID" => $User['id']])
+                         ->epilog('FOR UPDATE')->first();
+      
+      // Creación de la orden en el microservicio
+      $order = $this->getRepository("Order")->createOrder($profile, $address, $product->id);
+      
+      // Actualización de puntos canjeados
+      $profile->redeemed_points += $product->points_value;
+      $Profiles->save($profile);
+      
+      // Envío de email de confirmación
+      $this->getMailer("PurchaseOrder")->new($currentUser, $order);
+  });
+  ```
+
+  <Check>
+  Si algo falla durante el proceso, se cancela automáticamente la orden en el microservicio y se revierten todos los cambios.
+  </Check>
+</Step>
+
+<Step title="Confirmación y Notificación">
+  Una vez completada la transacción:
+
+  1. **Confirmación de orden**: Se confirma la creación en el microservicio
+  2. **Actualización de puntos**: Los puntos se marcan como canjeados
+  3. **Email de confirmación**: Se envía notificación al usuario
+  4. **Respuesta al cliente**: Se retorna el ID de la orden creada
+
+  <Tip>
+  El usuario recibe un email con los detalles de su orden y el tiempo estimado de entrega.
+  </Tip>
+</Step>
+</Steps>
+
+## Validaciones Detalladas
+
+### Validación de Usuario
+
+<AccordionGroup>
+<Accordion title="Autenticación">
+```php
+if (!$this->Auth->user()) {
+    throw new UnauthorizedException('Usuario no autenticado');
+}
+```
+
+Se verifica que el usuario tenga una sesión válida y activa.
+</Accordion>
+
+<Accordion title="Dirección de Entrega">
+```php
+$address = $this->UserAddresses->find()
+    ->where(['user_id' => $userId])
+    ->first();
+
+if (!$address) {
+    throw new ForbiddenException('Debe registrar una dirección de entrega');
+}
+```
+
+El usuario debe tener al menos una dirección registrada para poder realizar canjes.
+</Accordion>
+
+<Accordion title="Puntos Suficientes">
+```php
+$availablePoints = $profile->accumulated_points - $profile->redeemed_points;
+
+if ($availablePoints < $product->points_value) {
+    throw new ForbiddenException('Puntos insuficientes para este producto');
+}
+```
+
+Se calcula el saldo disponible y se compara con el costo del producto.
+</Accordion>
+</AccordionGroup>
+
+### Validación de Producto
+
+<Tabs>
+<Tab title="Existencia">
+```php
+$product = $this->Products->find()
+    ->where(['id' => $productId, 'active' => true])
+    ->first();
+
+if (!$product) {
+    throw new NotFoundException('Producto no encontrado o inactivo');
+}
+```
+</Tab>
+
+<Tab title="Disponibilidad">
+```php
+if ($product->stock <= 0) {
+    throw new ForbiddenException('Producto sin stock disponible');
+}
+```
+</Tab>
+
+<Tab title="Restricciones">
+```php
+if ($product->requires_special_validation) {
+    $this->validateSpecialProduct($product, $user);
+}
+```
+</Tab>
+</Tabs>
+
+## Manejo de Transacciones
+
+### Bloqueo Optimista
+
+<Warning>
+Se utiliza `FOR UPDATE` para prevenir condiciones de carrera en los puntos del usuario.
+</Warning>
+
+```php
+$profile = $Profiles->find("byUserID", ["userID" => $User['id']])
+                   ->epilog('FOR UPDATE')
+                   ->first();
+```
+
+Esto garantiza que:
+- Solo una transacción puede modificar los puntos del usuario a la vez
+- Se previenen inconsistencias en canjes simultáneos
+- Se mantiene la integridad de los datos
+
+### Rollback Automático
+
+En caso de error durante cualquier paso:
+
+<CodeGroup>
+```php Cancelación de Orden
+foreach ($orders as $order) {
+    $this->getRepository("Order")->cancelByID($order->id);
+}
+```
+
+```php Reversión de Puntos
+// Los puntos se revierten automáticamente 
+// al hacer rollback de la transacción
+$conn->rollback();
+```
+</CodeGroup>
+
+## Payload al Microservicio
+
+<RequestExample>
+```json Canje Directo
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR123456",
+  "contact_name": "María González",
+  "contact_cellphone": "5551234567",
+  "contact_email": "maria@email.com",
+  "address_country": "México",
+  "address_state": "Ciudad de México",
+  "address_city": "Ciudad de México",
+  "address_district": "Benito Juárez",
+  "address_street": "Av. Insurgentes Sur",
+  "address_ext_number": "123",
+  "address_postal_code": "03100",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "LAPTOP001",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</RequestExample>
+
+## Respuestas del Sistema
+
+<ResponseExample>
+```json Éxito (201)
+{
+  "success": true,
+  "order_id": "ORD123456789",
+  "status": "CREATED",
+  "product_name": "Laptop Dell Inspiron",
+  "points_used": 15000,
+  "estimated_delivery": "5-7 días hábiles"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error - Puntos Insuficientes (403)
+{
+  "error": "Insufficient points",
+  "message": "Necesitas 15000 puntos, tienes 12000 disponibles",
+  "required_points": 15000,
+  "available_points": 12000
+}
+```
+</ResponseExample>
+
+<Check>
+El canje directo es el método más rápido y eficiente para productos individuales, con validaciones robustas y manejo automático de errores.
+</Check>

@@ -74,15 +74,17 @@
       {
         "group": "Purchase Orders API",
         "pages": [
-          "api-reference/purchase-orders/introduction",
+          "api-reference/purchase-orders/microservice-architecture",
+          "api-reference/purchase-orders/direct-redemption-flow",
+          "api-reference/purchase-orders/shopping-cart-flow",
+          "api-reference/purchase-orders/payloads-reference",
+          "api-reference/purchase-orders/database-tables",
+          "api-reference/purchase-orders/error-handling",
           "api-reference/purchase-orders/add-to-cart",
-          "api-reference/purchase-orders/get-shopping-cart",
           "api-reference/purchase-orders/remove-from-cart",
-          "api-reference/purchase-orders/purchase-cart",
-          "api-reference/purchase-orders/create-direct-redemption",
-          "api-reference/purchase-orders/order-details",
-          "api-reference/purchase-orders/order-history",
-          "api-reference/purchase-orders/cancel-order"
+          "api-reference/purchase-orders/get-cart",
+          "api-reference/purchase-orders/purchase-direct",
+          "api-reference/purchase-orders/purchase-cart"
         ]
       },
       {

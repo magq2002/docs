@@ -1,0 +1,299 @@
+---
+title: "Flujo de Carrito de Compras"
+description: "Proceso completo para el canje por carrito de compras con manejo de productos especiales"
+---
+
+# Canje por Carrito de Compras
+
+El carrito de compras permite a los usuarios acumular múltiples productos antes de realizar el canje, con manejo especial para productos que requieren documentación adicional.
+
+## Proceso Completo
+
+<Steps>
+<Step title="Validación del Carrito">
+  El endpoint `POST /api/v2/collaborator/purchase-orders/purchase-shopping-cart` valida:
+
+  - ✅ Que el carrito no esté vacío
+  - ✅ Que el usuario esté autenticado
+  - ✅ Que tenga dirección de entrega registrada
+  - ✅ Validaciones especiales para productos CEVER
+
+  <Info>
+  Los productos CEVER requieren documentos adicionales: RFC, INE y comprobante de domicilio en formato base64.
+  </Info>
+</Step>
+
+<Step title="Procesamiento de Productos Especiales">
+  El sistema identifica automáticamente productos que requieren manejo especial:
+
+  <Tabs>
+  <Tab title="Productos Posada">
+    **SKUs**: `GP-KTS01`, `GP-PKTS02`, `GP-KTS03`
+    
+    Se registran en la tabla `EmailPosadas` para seguimiento especial:
+    ```php
+    $email = $emails->newEntity([
+        'order_id'      => $productValue["order_id"],
+        'user_name'     => $profile->first_names . ' ' . $profile->last_names,
+        'user_email'    => $profile->email,
+        'user_phone'    => $profile->cellphone,
+        'product_name'  => $productValue["product_name"],
+        'status'        => 'PENDING',
+    ]);
+    ```
+  </Tab>
+
+  <Tab title="Productos CEVER">
+    **SKUs**: `CEVER15`, `CEVER25`, `CEVER50`
+    
+    Requieren documentos que se guardan como imágenes PNG:
+    ```php
+    $documents = $this->CertificateDocuments->newEntity([
+        'order_id'          => $product["order_id"],
+        'img_rfc'           => $rfc_file,
+        'img_ine'           => $ine_file,
+        'img_proof_address' => $voucher_file,
+        'image_path'        => $path
+    ]);
+    ```
+  </Tab>
+  </Tabs>
+</Step>
+
+<Step title="Creación de Órdenes">
+  Para cada producto en el carrito:
+
+  1. **Cálculo del precio total** en puntos
+  2. **Validación de puntos suficientes** del usuario
+  3. **Creación de orden individual** en el microservicio
+  4. **Actualización de puntos canjeados** del usuario
+  5. **Vaciado del carrito** de compras
+  6. **Envío de notificaciones** por email
+</Step>
+</Steps>
+
+## Productos Especiales
+
+### Productos Posada
+
+Los productos de la línea Posada requieren seguimiento especial debido a su naturaleza de servicios hoteleros.
+
+<Warning>
+Estos productos no se procesan inmediatamente, sino que requieren coordinación manual con el proveedor.
+</Warning>
+
+#### SKUs Identificados
+
+| SKU | Descripción | Proceso Especial |
+|-----|-------------|------------------|
+| `GP-KTS01` | Kit Posada Básico | Registro en EmailPosadas |
+| `GP-PKTS02` | Paquete Posada Premium | Notificación especial |
+| `GP-KTS03` | Kit Posada Familiar | Seguimiento manual |
+
+#### Proceso de Registro
+
+```php
+// Identificación automática
+if (in_array($product->sku, ['GP-KTS01', 'GP-PKTS02', 'GP-KTS03'])) {
+    $emailPosada = $this->EmailPosadas->newEntity([
+        'order_id'      => $order->id,
+        'user_name'     => $profile->full_name,
+        'user_email'    => $profile->email,
+        'user_phone'    => $profile->cellphone,
+        'product_name'  => $product->name,
+        'status'        => 'PENDING',
+        'created'       => new DateTime()
+    ]);
+    
+    $this->EmailPosadas->save($emailPosada);
+}
+```
+
+### Productos CEVER
+
+Los productos CEVER (certificados de regalo) requieren documentación fiscal para su procesamiento.
+
+<Info>
+CEVER son certificados de regalo que requieren validación fiscal, por lo que necesitan documentos oficiales del usuario.
+</Info>
+
+#### Documentos Requeridos
+
+<AccordionGroup>
+<Accordion title="RFC (Registro Federal de Contribuyentes)">
+- **Formato**: Imagen en base64
+- **Validación**: Se convierte a PNG y se almacena
+- **Uso**: Identificación fiscal del beneficiario
+
+```php
+$rfc_data = base64_decode($request_data['rfc']);
+$rfc_file = 'rfc_' . $order_id . '.png';
+file_put_contents($upload_path . $rfc_file, $rfc_data);
+```
+</Accordion>
+
+<Accordion title="INE (Identificación Oficial)">
+- **Formato**: Imagen en base64
+- **Validación**: Se convierte a PNG y se almacena
+- **Uso**: Verificación de identidad
+
+```php
+$ine_data = base64_decode($request_data['ine']);
+$ine_file = 'ine_' . $order_id . '.png';
+file_put_contents($upload_path . $ine_file, $ine_data);
+```
+</Accordion>
+
+<Accordion title="Comprobante de Domicilio">
+- **Formato**: Imagen en base64
+- **Validación**: Se convierte a PNG y se almacena
+- **Uso**: Verificación de dirección fiscal
+
+```php
+$voucher_data = base64_decode($request_data['domicilio']);
+$voucher_file = 'voucher_' . $order_id . '.png';
+file_put_contents($upload_path . $voucher_file, $voucher_data);
+```
+</Accordion>
+</AccordionGroup>
+
+#### SKUs CEVER
+
+| SKU | Valor | Documentos Requeridos |
+|-----|-------|----------------------|
+| `CEVER15` | $1,500 MXN | RFC + INE + Comprobante |
+| `CEVER25` | $2,500 MXN | RFC + INE + Comprobante |
+| `CEVER50` | $5,000 MXN | RFC + INE + Comprobante |
+
+## Validación de Documentos
+
+### Formato de Entrada
+
+<RequestExample>
+```json Documentos CEVER
+{
+  "rfc": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+  "ine": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQAB...",
+  "domicilio": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+}
+```
+</RequestExample>
+
+### Proceso de Validación
+
+<CodeGroup>
+```php Validación de Formato
+function validateBase64Image($base64_string) {
+    // Remover el prefijo data:image si existe
+    $image_data = preg_replace('/^data:image\/[^;]+;base64,/', '', $base64_string);
+    
+    // Validar que sea base64 válido
+    if (!base64_decode($image_data, true)) {
+        throw new InvalidArgumentException('Formato de imagen inválido');
+    }
+    
+    return $image_data;
+}
+```
+
+```php Almacenamiento Seguro
+function saveDocument($base64_data, $order_id, $doc_type) {
+    $upload_path = Configure::read('App.uploadsPath') . 'cever_documents/';
+    
+    // Crear directorio si no existe
+    if (!is_dir($upload_path)) {
+        mkdir($upload_path, 0755, true);
+    }
+    
+    $filename = $doc_type . '_' . $order_id . '.png';
+    $file_path = $upload_path . $filename;
+    
+    $image_data = $this->validateBase64Image($base64_data);
+    file_put_contents($file_path, base64_decode($image_data));
+    
+    return $filename;
+}
+```
+</CodeGroup>
+
+## Payload al Microservicio
+
+<RequestExample>
+```json Carrito Múltiple
+{
+  "client": "MODELO_MX",
+  "project": "incentive_mx",
+  "buyer_reference": "USR789012",
+  "contact_name": "Carlos Rodríguez",
+  "contact_cellphone": "5551234567",
+  "contact_email": "carlos@email.com",
+  "address_country": "México",
+  "address_state": "Ciudad de México",
+  "address_city": "Ciudad de México",
+  "address_street": "Av. Insurgentes Sur",
+  "address_ext_number": "123",
+  "address_postal_code": "03100",
+  "operation": "CREATE_ORDER",
+  "products": [
+    {
+      "product_id": "LAPTOP001",
+      "product_quantity": 1
+    },
+    {
+      "product_id": "MOUSE002",
+      "product_quantity": 2
+    },
+    {
+      "product_id": "CEVER25",
+      "product_quantity": 1
+    }
+  ]
+}
+```
+</RequestExample>
+
+## Manejo de Errores
+
+### Rollback de Carrito
+
+<Warning>
+Si algún producto falla durante el procesamiento, se cancelan todas las órdenes creadas y se restaura el carrito.
+</Warning>
+
+```php
+try {
+    foreach ($cartItems as $item) {
+        $order = $this->createOrderForProduct($item);
+        $orders[] = $order;
+    }
+    
+    // Si todo sale bien, vaciar carrito
+    $this->ShoppingCarts->clearCart($userId);
+    
+} catch (\Throwable $th) {
+    // Cancelar todas las órdenes creadas
+    foreach ($orders as $order) {
+        $this->getRepository("Order")->cancelByID($order->id);
+    }
+    
+    // El carrito se mantiene intacto
+    throw $th;
+}
+```
+
+### Validación de Documentos Faltantes
+
+<ResponseExample>
+```json Error - Documentos CEVER Faltantes
+{
+  "error": "Missing required documents",
+  "message": "Los productos CEVER requieren RFC, INE y comprobante de domicilio",
+  "required_documents": ["rfc", "ine", "domicilio"],
+  "cever_products": ["CEVER25"]
+}
+```
+</ResponseExample>
+
+<Check>
+El carrito de compras permite canjes complejos con múltiples productos y manejo automático de casos especiales como productos Posada y CEVER.
+</Check>

@@ -1,116 +1,266 @@
 ---
 title: "Get Shopping Cart"
-openapi: "GET /collaborator/purchase-orders/shopping-cart"
+api: "GET /api/v2/collaborator/purchase-orders/cart"
+description: "Retrieve the current user's shopping cart contents"
 ---
 
-## Overview
+This endpoint retrieves all items currently in the authenticated user's shopping cart, including product details, quantities, and point values. The implementation uses the UserShoppingCartItem service to format and return cart data.
 
-This endpoint returns the current contents of the collaborator's shopping cart, including all added products, quantities, point calculations, and cart totals.
+## Authentication
 
-<RequestExample>
-```bash cURL
-curl -X GET 'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart' \
-  -H 'Authorization: Bearer YOUR_API_TOKEN'
-```
+<ParamField header="Authorization" type="string" required>
+Bearer token for API authentication. Format: `Bearer YOUR_API_KEY`
+</ParamField>
 
-```javascript Node.js
-const response = await fetch('/api/v2/collaborator/purchase-orders/shopping-cart', {
-  method: 'GET',
-  headers: {
-    'Authorization': `Bearer ${apiToken}`
-  }
-});
-```
+## Implementation Details
 
-```python Python
-import requests
+The endpoint performs the following operations:
 
-response = requests.get(
-  'https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart',
-  headers={
-    'Authorization': f'Bearer {api_token}'
-  }
-)
-```
-</RequestExample>
+<Steps>
+<Step title="User Authentication">
+Validates that the user is authenticated and retrieves their user ID.
+</Step>
 
-## Parameters
+<Step title="Cart Retrieval">
+Uses UserShoppingCartItem service to get formatted cart data with product information.
+</Step>
 
-This endpoint does not require any parameters. The shopping cart is automatically associated with the authenticated collaborator.
+<Step title="Product Validation">
+Validates that all products in the cart are still active and available.
+</Step>
+
+<Step title="Points Calculation">
+Calculates total points required for all items in the cart.
+</Step>
+</Steps>
+
+## Response Structure
+
+The response includes detailed information about each cart item:
+
+<ResponseField name="success" type="boolean" required>
+Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+Container for cart data.
+
+<Expandable title="Cart data structure">
+<ResponseField name="cart" type="array" required>
+Array of cart items with product details.
+
+<Expandable title="Cart item structure">
+<ResponseField name="id" type="integer">
+Product unique identifier.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+Product name.
+</ResponseField>
+
+<ResponseField name="sku" type="string">
+Product SKU code.
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+Quantity of this product in the cart.
+</ResponseField>
+
+<ResponseField name="points" type="integer">
+Points required per unit.
+</ResponseField>
+
+<ResponseField name="total_points" type="integer">
+Total points for this item (quantity × points).
+</ResponseField>
+
+<ResponseField name="stock" type="string">
+Available stock for this product.
+</ResponseField>
+
+<ResponseField name="description" type="object">
+Product descriptions in different formats.
+
+<Expandable title="Description formats">
+<ResponseField name="large" type="string">
+Full product description.
+</ResponseField>
+
+<ResponseField name="medium" type="string">
+Medium-length description.
+</ResponseField>
+
+<ResponseField name="short" type="string">
+Short description.
+</ResponseField>
+</Expandable>
+</ResponseField>
+
+<ResponseField name="image_url" type="string">
+URL to product image.
+</ResponseField>
+</Expandable>
+</ResponseField>
+
+<ResponseField name="cever" type="boolean">
+Indicates if cart contains CEVER products requiring special documentation.
+</ResponseField>
+
+<ResponseField name="total_items" type="integer">
+Total number of items in cart.
+</ResponseField>
+
+<ResponseField name="total_points" type="integer">
+Total points required for entire cart.
+</ResponseField>
+</Expandable>
+</ResponseField>
 
 ## Response Examples
 
 <ResponseExample>
-```json Success - Cart with Items (200 OK)
+```json Success Response - Cart with Items
 {
   "success": true,
   "data": {
-    "cart_id": "cart_abc123",
-    "items": [
+    "cart": [
       {
-        "cart_item_id": "item_001",
-        "product_id": "prod_12345",
-        "product_name": "Smartphone Samsung Galaxy",
-        "product_image": "https://cdn.example.com/products/samsung-galaxy.jpg",
+        "id": 123,
+        "name": "Producto Ejemplo",
+        "sku": "PROD-123",
         "quantity": 2,
-        "unit_points": 500,
-        "total_points": 1000,
-        "availability": {
-          "in_stock": true,
-          "available_quantity": 15
+        "points": 250,
+        "total_points": 500,
+        "stock": "10",
+        "description": {
+          "large": "Descripción completa del producto ejemplo",
+          "medium": "Descripción completa del producto ejemplo",
+          "short": "Descripción completa del producto ejemplo"
         },
-        "added_at": "2024-01-15T09:30:00Z"
+        "image_url": "https://example.com/images/product-123.jpg"
       },
       {
-        "cart_item_id": "item_002",
-        "product_id": "prod_67890",
-        "product_name": "Auriculares Bluetooth Sony",
-        "product_image": "https://cdn.example.com/products/sony-headphones.jpg",
+        "id": 456,
+        "name": "CEVER Product",
+        "sku": "CEVER",
         "quantity": 1,
-        "unit_points": 300,
-        "total_points": 300,
-        "availability": {
-          "in_stock": true,
-          "available_quantity": 8
+        "points": 1000,
+        "total_points": 1000,
+        "stock": "5",
+        "description": {
+          "large": "Producto CEVER que requiere documentación especial",
+          "medium": "Producto CEVER que requiere documentación especial",
+          "short": "Producto CEVER que requiere documentación especial"
         },
-        "added_at": "2024-01-15T10:15:00Z"
+        "image_url": "https://example.com/images/cever-456.jpg"
       }
     ],
-    "summary": {
-      "total_items": 2,
-      "total_quantity": 3,
-      "total_points": 1300,
-      "estimated_delivery": "2024-01-22T00:00:00Z"
-    },
-    "collaborator_balance": {
-      "available_points": 2500,
-      "sufficient_balance": true
-    },
-    "updated_at": "2024-01-15T10:15:00Z"
+    "cever": true,
+    "total_items": 3,
+    "total_points": 1500
   }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Success Response - Empty Cart
+{
+  "success": true,
+  "data": {
+    "cart": [],
+    "cever": false,
+    "total_items": 0,
+    "total_points": 0
+  }
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Error Response - Authentication Failed
+{
+  "success": false,
+  "message": "Usuario no autenticado",
+  "errors": {
+    "auth": "Token de autorización requerido"
+  }
+}
+```
+</ResponseExample>
+
+## Code Implementation
+
+<CodeGroup>
+```php PHP Controller
+// From PurchaseOrdersController.php
+public function getCart() {
+    // Get authenticated user
+    $user = $this->getUser();
+    
+    // Get formatted cart data
+    $cartService = new UserShoppingCartItem();
+    $shoppingCart = $this->getShoppingCart($user->id);
+    
+    $cartData = $cartService->getFormatted($shoppingCart, true);
+    
+    // Calculate totals
+    $totalItems = array_sum(array_column($cartData['cart'], 'quantity'));
+    $totalPoints = array_sum(array_column($cartData['cart'], 'total_points'));
+    
+    return $this->response->withType('application/json')
+        ->withStringBody(json_encode([
+            'success' => true,
+            'data' => array_merge($cartData, [
+                'total_items' => $totalItems,
+                'total_points' => $totalPoints
+            ])
+        ]));
 }
 ```
 
-```json Success - Empty Cart (200 OK)
-{
-  "success": true,
-  "data": {
-    "cart_id": "cart_abc123",
-    "items": [],
-    "summary": {
-      "total_items": 0,
-      "total_quantity": 0,
-      "total_points": 0,
-      "estimated_delivery": null
-    },
-    "collaborator_balance": {
-      "available_points": 2500,
-      "sufficient_balance": true
-    },
-    "updated_at": "2024-01-15T08:00:00Z"
+```javascript JavaScript/Fetch
+const response = await fetch('/api/v2/collaborator/purchase-orders/cart', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY'
   }
+});
+
+const cartData = await response.json();
+
+if (cartData.success) {
+  console.log('Cart items:', cartData.data.cart);
+  console.log('Total points needed:', cartData.data.total_points);
+  console.log('Contains CEVER products:', cartData.data.cever);
 }
 ```
+
+```curl cURL
+curl -X GET '/api/v2/collaborator/purchase-orders/cart' \
+  -H 'Authorization: Bearer YOUR_API_KEY'
+```
+</CodeGroup>
+
+## Special Considerations
+
+<Info>
+The `cever` flag in the response indicates whether the cart contains products that require special documentation (RFC, INE, proof of address) during checkout.
+</Info>
+
+<Tip>
+Use the `stock` field to validate product availability before allowing users to proceed to checkout.
+</Tip>
+
+<Warning>
+Product prices and availability are validated in real-time. Cart contents may change between viewing and purchasing if products become unavailable.
+</Warning>
+
+## Related Endpoints
+
+- [Add to Cart](/api-reference/purchase-orders/add-to-cart) - Add products to the shopping cart
+- [Remove from Cart](/api-reference/purchase-orders/remove-from-cart) - Remove products from the cart
+- [Purchase Cart](/api-reference/purchase-orders/purchase-cart) - Complete the cart purchase
 
 ```json Cart with Unavailable Items (200 OK)
 {

@@ -1,12 +1,16 @@
 ---
 title: "Purchase Shopping Cart"
-api: "POST https://api.example.com/api/v2/collaborator/purchase-orders/shopping-cart/purchase"
-description: "Complete the purchase of all items in the collaborator's shopping cart"
+api: "POST /api/v2/collaborator/purchase-orders/purchase-cart"
+description: "Redeem all items from the user's shopping cart"
 ---
 
-## Overview
+This endpoint allows collaborators to redeem all items currently in their shopping cart. The implementation validates the cart contents, handles special product requirements (like CEVER products), and processes the order through the purchase order microservice.
 
-This endpoint processes the purchase of all items currently in the collaborator's shopping cart. It validates point balance, product availability, and delivery information before creating the order and clearing the cart.
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+Bearer token for API authentication. Format: `Bearer YOUR_API_KEY`
+</ParamField>
 
 <RequestExample>
 ```bash cURL
