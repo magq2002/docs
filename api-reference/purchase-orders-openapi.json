@@ -1,0 +1,307 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Purchase Orders API",
+    "description": "API for managing collaborator purchase orders and shopping cart operations",
+    "version": "2.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com/api/v2"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/collaborator/purchase-orders/shopping-cart/add": {
+      "post": {
+        "summary": "Add to Shopping Cart",
+        "description": "Add a product to the collaborator's shopping cart",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "string",
+                    "description": "Product identifier"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "description": "Quantity to add"
+                  }
+                },
+                "required": ["product_id", "quantity"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product added successfully"
+          }
+        }
+      }
+    },
+    "/collaborator/purchase-orders/shopping-cart": {
+      "get": {
+        "summary": "Get Shopping Cart",
+        "description": "Retrieve current shopping cart contents",
+        "responses": {
+          "200": {
+            "description": "Shopping cart contents"
+          }
+        }
+      }
+    },
+    "/collaborator/purchase-orders/{order_id}/cancel": {
+      "delete": {
+        "summary": "Cancel Order",
+        "description": "Cancel an existing purchase order",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order cancelled successfully"
+          }
+        }
+      }
+    },
+    "/collaborator/purchase-orders/direct-redemption": {
+      "post": {
+        "summary": "Create Direct Redemption",
+        "description": "Create an immediate product redemption order for a collaborator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "string",
+                    "description": "Product identifier"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "description": "Quantity to redeem"
+                  },
+                  "delivery_address": {
+                    "type": "object",
+                    "description": "Delivery address information"
+                  }
+                },
+                "required": ["product_id", "quantity"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Direct redemption created successfully"
+          }
+        }
+      }
+    },
+    "/collaborator/purchase-orders/{order_id}": {
+      "get": {
+        "summary": "Order Details",
+        "description": "Retrieve detailed information for a specific purchase order",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details retrieved successfully"
+          }
+        }
+      }
+    },
+    "/collaborator/purchase-orders/shopping-cart/remove/{cart_item_id}": {
+      "delete": {
+        "summary": "Remove from Shopping Cart",
+        "description": "Remove a specific item from the collaborator's shopping cart",
+        "parameters": [
+          {
+            "name": "cart_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item removed from cart successfully"
+          }
+        }
+      }
+    },
+    "/collaborator/purchase-orders/history": {
+      "get": {
+        "summary": "Order History",
+        "description": "Retrieve the collaborator's purchase order history with pagination and filtering options",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order history retrieved successfully"
+          }
+        }
+      }
+    },
+    "/collaborator/purchase-orders/shopping-cart/purchase": {
+      "post": {
+        "summary": "Purchase Shopping Cart",
+        "description": "Complete the purchase of all items in the collaborator's shopping cart",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "delivery_address": {
+                    "type": "object",
+                    "description": "Delivery address information"
+                  },
+                  "payment_method": {
+                    "type": "string",
+                    "description": "Payment method (points, credits, etc.)"
+                  }
+                },
+                "required": ["delivery_address"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Shopping cart purchased successfully"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CartItem": {
+        "type": "object",
+        "required": ["product_id", "quantity"],
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "description": "Product identifier"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Quantity of the product"
+          },
+          "price": {
+            "type": "number",
+            "description": "Price per unit"
+          }
+        }
+      },
+      "ShoppingCart": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Total cart value"
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "Unique order identifier"
+          },
+          "status": {
+            "type": "string",
+            "description": "Order status"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            }
+          },
+          "total": {
+            "type": "number",
+            "description": "Order total value"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Order creation timestamp"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
